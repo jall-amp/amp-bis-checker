@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <title>BIS Checker</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+
+<body>
+  <h2>AMP BIS CHECKER</h2>
+  <div id="errorMsg" class="error-msg hidden"></div>
+
+  <!-- Section 1: Page Check -->
+  <div class="section">
+    <div class="tooltip-wrapper" data-tooltip="Analyzes the current page.">
+      <button id="checkBtn" class="primary-btn last-btn">Check Current Page</button>
+    </div>
+
+    <div id="results">
+      <div class="result-block">
+        <div class="status-item">
+          <span>BIS Script:</span>
+          <button id="scriptStatus" class="status-btn unknown" disabled>Unknown</button>
+        </div>
+        <div id="scriptDetails" class="details hidden"></div>
+      </div>
+
+      <div class="result-block">
+        <div class="status-item">
+          <span>#BIS_trigger (ID):</span>
+          <button id="idStatus" class="status-btn unknown" disabled>Unknown</button>
+        </div>
+        <div id="idDetails" class="details hidden"></div>
+      </div>
+
+      <div class="result-block">
+        <div class="status-item">
+          <span>.BIS_trigger (Class):</span>
+          <button id="classStatus" class="status-btn unknown" disabled>Unknown</button>
+        </div>
+        <div id="classDetails" class="details hidden"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 2: Editor -->
+  <div class="section">
+    <div class="tooltip-wrapper"
+      data-tooltip="Inject the BIS Script Editor to create integration snippets without server access.">
+      <button id="openEditorBtn" class="primary-btn last-btn">Open BIS Editor</button>
+    </div>
+  </div>
+
+  <!-- Section 3: Injector -->
+  <div class="section">
+    <div class="tooltip-wrapper"
+      data-tooltip="Manually inject a custom script tag into the page. Useful for testing unlinked themes.">
+      <div class="inject-section">
+        <input type="text" id="injectScriptUrl" placeholder="Paste BIS Admin Copy Widget URL here..." />
+        <button id="injectScriptBtn" class="primary-btn last-btn">Inject Script</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 4: Snippets -->
+  <div class="section">
+    <div class="tooltip-wrapper" data-tooltip="Copy the V1 Collection standard snippet straight to your clipboard.">
+      <button id="copyCollectionsBtn" class="primary-btn last-btn">Copy V1 Collection Snippet</button>
+    </div>
+  </div>
+
+  <br />
+  <hr style="border: 0; border-top: 1px solid #ebebeb; margin: 15px 0;">
+  <h2>AMP PREORDER CHECKER</h2>
+  <div id="errorMsgPreorder" class="error-msg hidden"></div>
+
+  <!-- Section 5: Preorder Check -->
+  <div class="section">
+    <div class="tooltip-wrapper" data-tooltip="Analyzes JS/JSON of the product to show stock and preorder policy.">
+      <button id="checkPreorderBtn" class="primary-btn last-btn">Check Preorder Product</button>
+    </div>
+
+    <div id="preorderResults" class="hidden">
+      <!-- Preorder results will be injected here -->
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+
+</html>
