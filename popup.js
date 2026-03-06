@@ -1536,6 +1536,11 @@ document.getElementById('checkPreorderBtn').addEventListener('click', async () =
           liquidPreorderSettings = window.LiquidPreOrdersConfig;
         }
 
+        // Top-level checks
+        const noLiquidHelper = !liquidPreorderSettings;
+        const noJsWidget = !preorderSettings;
+        const isPreordersDisabledGlobally = preorderSettings && preorderSettings.purchases_enabled === false;
+
         const variants = data.variants.map(v => ({
           id: v.id,
           title: v.title || v.name || v.public_title || 'Default Title',
@@ -1544,7 +1549,7 @@ document.getElementById('checkPreorderBtn').addEventListener('click', async () =
           management: v.inventory_management
         }));
 
-        return { variants, preorderSettings, liquidPreorderSettings };
+        return { variants, preorderSettings, liquidPreorderSettings, noLiquidHelper, noJsWidget, isPreordersDisabledGlobally };
       } catch (err) {
         return { error: err.message };
       }
@@ -1566,200 +1571,288 @@ document.getElementById('checkPreorderBtn').addEventListener('click', async () =
 
     if (data && data.variants && Array.isArray(data.variants)) {
       resultsDiv.classList.remove('hidden');
-      data.variants.forEach((v, index) => {
-        const wrapper = document.createElement('div');
-        wrapper.className = 'item-wrapper';
-        wrapper.style.marginBottom = '8px';
 
-        const header = document.createElement('div');
-        header.className = 'item-header';
+      // 1. App Embed and Preorder is Disabled (JS Widget exists and says it's disabled)
+      if (data.noLiquidHelper && data.isPreordersDisabledGlobally) {
+        const errorBanner = document.createElement('div');
+        errorBanner.style.padding = '10px';
+        errorBanner.style.marginBottom = '15px';
+        errorBanner.style.backgroundColor = '#ffeef0';
+        errorBanner.style.borderLeft = '4px solid #d82c0d';
+        errorBanner.innerHTML = `<strong>⚠️ App Embed & Preorder Disabled:</strong> The BIS App Embed is disabled in the Theme Editor, AND preorders are turned OFF in the app settings.`;
+        resultsDiv.appendChild(errorBanner);
+      }
+      // 2. Preorder is Disabled (App Embed is active)
+      else if (!data.noLiquidHelper && data.isPreordersDisabledGlobally) {
+        const errorBanner = document.createElement('div');
+        errorBanner.style.padding = '10px';
+        errorBanner.style.marginBottom = '15px';
+        errorBanner.style.backgroundColor = '#ffeef0';
+        errorBanner.style.borderLeft = '4px solid #d82c0d';
+        errorBanner.innerHTML = `<strong>⚠️ Preorder Disabled:</strong> The Preorder feature is currently turned OFF in the app settings.`;
+        resultsDiv.appendChild(errorBanner);
+      }
+      // 3. App Embed is Disabled (and Preorder is ON, or JS Widget is missing entirely)
+      else if (data.noLiquidHelper) {
+        const errorBanner = document.createElement('div');
+        errorBanner.style.padding = '10px';
+        errorBanner.style.marginBottom = '15px';
+        errorBanner.style.backgroundColor = '#fff5ea';
+        errorBanner.style.borderLeft = '4px solid #b98900';
+        errorBanner.innerHTML = `<strong>⚠️ App Embed Disabled or Missing:</strong> The BIS App Embed is turned off in the Theme Editor.`;
+        resultsDiv.appendChild(errorBanner);
+      }
 
-        // Prioritize LiquidPreOrdersConfig data (from BIS app backend) over product JSON
-        // because themes can hide inventory_policy/inventory_quantity from the JSON endpoint
-        const liquidVariant = data.liquidPreorderSettings
-          && data.liquidPreorderSettings.variants
-          && data.liquidPreorderSettings.variants[String(v.id)];
+      // Skip rendering variant blocks if helper is missing or preorders are globally disabled
+      if (!data.noLiquidHelper && !data.isPreordersDisabledGlobally) {
+        data.variants.forEach((v, index) => {
+          const wrapper = document.createElement('div');
+          wrapper.className = 'item-wrapper';
+          wrapper.style.marginBottom = '8px';
 
-        const isContinue = liquidVariant
-          ? liquidVariant.inventory_policy === 'continue'
-          : v.policy === 'continue';
-        const continueText = isContinue ? 'True' : 'False';
+          const header = document.createElement('div');
+          header.className = 'item-header';
 
-        // For OOS: use liquidVariant.oos if available (most accurate), else fall back to qty
-        let hasNoStock;
-        if (liquidVariant && typeof liquidVariant.oos !== 'undefined') {
-          hasNoStock = liquidVariant.oos === true;
-        } else {
-          const stockQty = v.qty !== undefined && v.qty !== null ? v.qty : 0;
-          hasNoStock = stockQty <= 0;
-        }
+          // Prioritize LiquidPreOrdersConfig data (from BIS app backend) over product JSON
+          // because themes can hide inventory_policy/inventory_quantity from the JSON endpoint
+          const liquidVariant = data.liquidPreorderSettings
+            && data.liquidPreorderSettings.variants
+            && data.liquidPreorderSettings.variants[String(v.id)];
 
-        const willShowPreorder = hasNoStock && isContinue;
+          // Policy processing: Handle missing json data cleanly
+          const isContinue = liquidVariant
+            ? liquidVariant.inventory_policy === 'continue'
+            : (v.policy === 'continue');
 
-        header.innerHTML = `<span>Variant: ${v.title}</span>`;
+          let continueText = 'False';
+          if (isContinue) continueText = 'True';
+          if (!liquidVariant && v.policy === undefined) continueText = 'Unknown (Hidden by Theme)';
 
-        const goToBtn = document.createElement('button');
-        goToBtn.className = 'highlight-btn';
-        goToBtn.textContent = 'Go to variant';
-        goToBtn.style.padding = '2px 8px';
-        goToBtn.onclick = () => {
-          chrome.scripting.executeScript({
-            target: { tabId: tab.id },
-            world: 'MAIN',
-            function: (variantId) => {
-              const url = new URL(window.location.href);
-              url.searchParams.set('variant', variantId);
-              window.location.href = url.toString();
-            },
-            args: [v.id]
-          });
-        };
-        header.appendChild(goToBtn);
+          // For OOS: use liquidVariant.oos if available (most accurate), else fall back to qty
+          let hasNoStock = false;
+          let isStockHidden = false;
 
-        const details = document.createElement('div');
-        details.style.fontSize = '12px';
-        details.style.marginTop = '4px';
+          if (liquidVariant && typeof liquidVariant.oos !== 'undefined') {
+            hasNoStock = liquidVariant.oos === true;
+          } else {
+            const stockQty = v.qty !== undefined && v.qty !== null ? v.qty : null;
+            if (stockQty === null) {
+              isStockHidden = true;
+            } else {
+              hasNoStock = stockQty <= 0;
+            }
+          }
 
-        // Stock display: show qty from JSON, but note if using BIS oos flag
-        const stockQtyDisplay = v.qty !== undefined && v.qty !== null ? v.qty : null;
-        let stockDisplay;
-        if (stockQtyDisplay !== null) {
-          const stockColor = stockQtyDisplay <= 0 ? '#008060' : '#d82c0d';
-          stockDisplay = `<span style="color:${stockColor}; font-weight:bold;">${stockQtyDisplay}</span>`;
-        } else if (liquidVariant && typeof liquidVariant.oos !== 'undefined') {
-          const oosColor = liquidVariant.oos ? '#008060' : '#d82c0d';
-          stockDisplay = `<span style="color:${oosColor}; font-weight:bold;">${liquidVariant.oos ? 'OOS' : 'In Stock'}</span>`;
-        } else {
-          stockDisplay = `<span style="color:#8c9196; font-weight:bold;">Unknown (Hidden by Theme)</span>`;
-        }
+          const willShowPreorder = hasNoStock && isContinue;
 
-        const continueColor = isContinue ? '#008060' : '#d82c0d';
-        const continueDisplay = `<span style="color:${continueColor}; font-weight:bold;">${continueText}</span>`;
+          header.innerHTML = `<span>Variant: ${v.title}</span>`;
 
-        const invTrackingText = (v.management === 'shopify' || v.management === true || v.management === 'true') ? 'True' : 'False';
-        const invColor = invTrackingText === 'True' ? '#008060' : '#d82c0d';
-        const invTrackingDisplay = `<span style="color:${invColor}; font-weight:bold;">${invTrackingText}</span>`;
+          const goToBtn = document.createElement('button');
+          goToBtn.className = 'highlight-btn';
+          goToBtn.textContent = 'Go to variant';
+          goToBtn.style.padding = '2px 8px';
+          goToBtn.onclick = () => {
+            chrome.scripting.executeScript({
+              target: { tabId: tab.id },
+              world: 'MAIN',
+              function: (variantId) => {
+                const url = new URL(window.location.href);
+                url.searchParams.set('variant', variantId);
+                window.location.href = url.toString();
+              },
+              args: [v.id]
+            });
+          };
+          header.appendChild(goToBtn);
 
-        details.innerHTML = `
+          const details = document.createElement('div');
+          details.style.fontSize = '12px';
+          details.style.marginTop = '4px';
+
+          // Stock display: show qty from JSON, but note if using BIS oos flag
+          const stockQtyDisplay = v.qty !== undefined && v.qty !== null ? v.qty : null;
+          let stockDisplay;
+          if (stockQtyDisplay !== null) {
+            const stockColor = stockQtyDisplay <= 0 ? '#008060' : '#d82c0d';
+            stockDisplay = `<span style="color:${stockColor}; font-weight:bold;">${stockQtyDisplay}</span>`;
+          } else if (liquidVariant && typeof liquidVariant.oos !== 'undefined') {
+            const oosColor = liquidVariant.oos ? '#008060' : '#d82c0d';
+            stockDisplay = `<span style="color:${oosColor}; font-weight:bold;">${liquidVariant.oos ? 'OOS' : 'In Stock'}</span>`;
+          } else {
+            // Explicitly report it is hidden
+            stockDisplay = `<span style="color:#b98900; font-weight:bold;">Unknown (Hidden by Theme)</span>`;
+          }
+
+          const continueColor = (isContinue || continueText === 'True') ? '#008060' : (continueText.includes('Unknown') ? '#b98900' : '#d82c0d');
+          const continueDisplay = `<span style="color:${continueColor}; font-weight:bold;">${continueText}</span>`;
+
+          let invTrackingText = (v.management === 'shopify' || v.management === true || v.management === 'true') ? 'True' : 'False';
+          if (!liquidVariant && v.management === null) invTrackingText = 'Unknown (Hidden by Theme)';
+
+          const invColor = invTrackingText === 'True' ? '#008060' : (invTrackingText.includes('Unknown') ? '#b98900' : '#d82c0d');
+          const invTrackingDisplay = `<span style="color:${invColor}; font-weight:bold;">${invTrackingText}</span>`;
+
+          details.innerHTML = `
           <strong>Stock:</strong> ${stockDisplay}<br/>
           <strong>Inventory Tracking:</strong> ${invTrackingDisplay}<br/>
           <strong>Continue Selling When OOS:</strong> ${continueDisplay}<br/>
         `;
 
-        // Check for 'preorder-enabled' tag conditionally
-        if (data.preorderSettings && data.preorderSettings.visibility === 'tagged') {
-          let hasTag = false;
-          if (data.liquidPreorderSettings && Array.isArray(data.liquidPreorderSettings.product_tags)) {
-            hasTag = data.liquidPreorderSettings.product_tags.map(t => t.toLowerCase()).includes('preorder-enabled');
-          }
-          const tagColor = hasTag ? '#008060' : '#d82c0d';
-          const tagDisplay = `<span style="color:${tagColor}; font-weight:bold;">${hasTag ? 'True' : 'False'}</span>`;
-          details.innerHTML += `<strong>Tagged with preorder-enabled:</strong> ${tagDisplay}<br/>`;
+          // Determine if data is too masked to evaluate correctly
+          const isUnverifiable = data.noLiquidHelper && (isStockHidden || continueText.includes('Unknown'));
 
-          const willShowPreorderTagged = willShowPreorder && hasTag;
-          if (willShowPreorderTagged) {
-            details.innerHTML += `
-              <span style="color:#6d7175; font-size:11px;">
+          // Check for 'preorder-enabled' tag conditionally
+          if (data.preorderSettings && data.preorderSettings.visibility === 'tagged') {
+            let hasTag = false;
+            if (data.liquidPreorderSettings && Array.isArray(data.liquidPreorderSettings.product_tags)) {
+              hasTag = data.liquidPreorderSettings.product_tags.map(t => t.toLowerCase()).includes('preorder-enabled');
+            }
+            const tagColor = hasTag ? '#008060' : '#d82c0d';
+            const tagDisplay = `<span style="color:${tagColor}; font-weight:bold;">${hasTag ? 'True' : 'False'}</span>`;
+            details.innerHTML += `<strong>Tagged with preorder-enabled:</strong> ${tagDisplay}<br/>`;
+
+            const willShowPreorderTagged = willShowPreorder && hasTag;
+
+            // Output Logic
+            if (data.isPreordersDisabledGlobally) {
+              details.innerHTML += `
+              <span style="color:#d82c0d; font-size:11px;">
+                ❌ Preorder button will NOT show.<br/>
+                <em>Reason: Preorders are toggled off globally.</em>
+              </span>
+            `;
+            } else if (isUnverifiable) {
+              details.innerHTML += `
+              <span style="color:#b98900; font-size:11px;">
+                ⚠️ Unverifiable.<br/>
+                <em>Reason: Helper script is missing and theme hides inventory data in JSON.</em>
+              </span>
+            `;
+            } else if (willShowPreorderTagged) {
+              details.innerHTML += `
+              <span style="color:#008060; font-size:11px;">
                 ✅ Preorder button should be visible.
               </span>
             `;
-          } else {
-            const reasons = [];
-            if (!hasNoStock) reasons.push("Product is in stock.");
-            if (!isContinue) reasons.push("'Continue Selling When OOS' is false.");
-            if (!hasTag) reasons.push("Missing 'preorder-enabled' tag.");
+            } else {
+              const reasons = [];
+              if (!hasNoStock && !isStockHidden) reasons.push("Product is in stock.");
+              if (!isContinue && !continueText.includes('Unknown')) reasons.push("'Continue Selling When OOS' is false.");
+              if (!hasTag) reasons.push("Missing 'preorder-enabled' tag.");
 
-            details.innerHTML += `
-              <span style="color:#6d7175; font-size:11px;">
+              if (reasons.length === 0 && isStockHidden) reasons.push("Stock data is hidden.");
+              if (reasons.length === 0 && continueText.includes('Unknown')) reasons.push("Inventory policy is hidden.");
+
+              details.innerHTML += `
+              <span style="color:#d82c0d; font-size:11px;">
                 ❌ Preorder button will NOT show.<br/>
                 <em>Reasons: ${reasons.join(' ')}</em>
               </span>
             `;
-          }
-        } else {
-          if (willShowPreorder) {
-            details.innerHTML += `
-              <span style="color:#6d7175; font-size:11px;">
+            }
+          } else {
+            // Output Logic (Not Tagged)
+            if (data.isPreordersDisabledGlobally) {
+              details.innerHTML += `
+              <span style="color:#d82c0d; font-size:11px;">
+                ❌ Preorder button will NOT show.<br/>
+                <em>Reason: Preorders are toggled off globally.</em>
+              </span>
+            `;
+            } else if (isUnverifiable) {
+              details.innerHTML += `
+              <span style="color:#b98900; font-size:11px;">
+                ⚠️ Unverifiable. <br/>
+                <em>Reason: Helper script is missing and theme hides inventory data in JSON.</em>
+              </span>
+            `;
+            } else if (willShowPreorder) {
+              details.innerHTML += `
+              <span style="color:#008060; font-size:11px;">
                 ✅ Preorder button should be visible.
               </span>
             `;
-          } else {
-            const reasons = [];
-            if (!hasNoStock) reasons.push("Product is in stock.");
-            if (!isContinue) reasons.push("'Continue Selling When OOS' is false.");
+            } else {
+              const reasons = [];
+              if (!hasNoStock && !isStockHidden) reasons.push("Product is in stock.");
+              if (!isContinue && !continueText.includes('Unknown')) reasons.push("'Continue Selling When OOS' is false.");
 
-            details.innerHTML += `
-              <span style="color:#6d7175; font-size:11px;">
+              if (reasons.length === 0 && isStockHidden) reasons.push("Stock data is hidden.");
+              if (reasons.length === 0 && continueText.includes('Unknown')) reasons.push("Inventory policy is hidden.");
+
+              details.innerHTML += `
+              <span style="color:#d82c0d; font-size:11px;">
                 ❌ Preorder button will NOT show.<br/>
                 <em>Reasons: ${reasons.join(' ')}</em>
               </span>
             `;
-          }
-        }
-
-        wrapper.appendChild(header);
-        wrapper.appendChild(details);
-        resultsDiv.appendChild(wrapper);
-      });
-
-      // Render Preorder Script Settings
-      if (data.preorderSettings) {
-        const settingsWrapper = document.createElement('div');
-        settingsWrapper.className = 'item-wrapper';
-        settingsWrapper.style.marginTop = '15px';
-        settingsWrapper.style.padding = '10px';
-        settingsWrapper.style.backgroundColor = '#f4f6f8';
-        settingsWrapper.style.border = '1px solid #dfe3e8';
-        settingsWrapper.style.borderRadius = '3px';
-
-        const settingsHeader = document.createElement('div');
-        settingsHeader.className = 'item-header';
-        settingsHeader.innerHTML = `<span style="font-weight: bold; color: #202223;">⚙️ Preorder Settings</span>`;
-        settingsHeader.style.marginBottom = '8px';
-
-        const settingsDetails = document.createElement('div');
-        settingsDetails.style.fontSize = '12px';
-
-        let settingsHtml = '';
-        const config = data.preorderSettings;
-        const { purchases_enabled, visibility, custom_button_copy, product_page_copy } = config;
-
-        // Check if preorders are completely disabled/empty
-        if (purchases_enabled === false && visibility === null && custom_button_copy === null && product_page_copy === null) {
-          settingsHtml = '<em style="color:#d82c0d; font-weight:bold;">Preorder not enabled</em>';
-        } else {
-          // Visibility mapping
-          let visText = visibility;
-          if (visibility === 'all') visText = 'All out-of-stock products';
-          if (visibility === 'tagged') visText = 'Only out-of-stock products with tag preorder-enabled';
-          settingsHtml += `<strong>Preorder Button Visibility:</strong> <span style="color:#6d7175;">${visText || 'null'}</span><br/>`;
-
-          // Custom Button Copy mapping
-          settingsHtml += `<strong>Preorder Button Label/Caption:</strong> <span style="color:#6d7175;">${custom_button_copy || 'null'}</span><br/>`;
-
-          // Product Page Copy mapping
-          settingsHtml += `<strong>Preorder Message:</strong> <span style="color:#6d7175;">${product_page_copy || 'null'}</span><br/>`;
-
-
-
-          // Dump any other unhandled keys just so Tier 2 can see raw data
-          const handledKeys = ['purchases_enabled', 'visibility', 'custom_button_copy', 'product_page_copy'];
-          let extraKeysHtml = '';
-          for (const [key, value] of Object.entries(config)) {
-            if (!handledKeys.includes(key) && value !== null) {
-              extraKeysHtml += `<strong>${key}:</strong> <span style="color:#6d7175;">${value}</span><br/>`;
             }
           }
-          if (extraKeysHtml) {
-            settingsHtml += `<em>Other Script Variables:</em><br/>${extraKeysHtml}`;
+
+          wrapper.appendChild(header);
+          wrapper.appendChild(details);
+          resultsDiv.appendChild(wrapper);
+        });
+
+        // Render Preorder Script Settings ONLY if not globally disabled and helper exists
+        if (data.preorderSettings) {
+          const settingsWrapper = document.createElement('div');
+          settingsWrapper.className = 'item-wrapper';
+          settingsWrapper.style.marginTop = '15px';
+          settingsWrapper.style.padding = '10px';
+          settingsWrapper.style.backgroundColor = '#f4f6f8';
+          settingsWrapper.style.border = '1px solid #dfe3e8';
+          settingsWrapper.style.borderRadius = '3px';
+
+          const settingsHeader = document.createElement('div');
+          settingsHeader.className = 'item-header';
+          settingsHeader.innerHTML = `<span style="font-weight: bold; color: #202223;">⚙️ Preorder Settings</span>`;
+          settingsHeader.style.marginBottom = '8px';
+
+          const settingsDetails = document.createElement('div');
+          settingsDetails.style.fontSize = '12px';
+
+          let settingsHtml = '';
+          const config = data.preorderSettings;
+          const { purchases_enabled, visibility, custom_button_copy, product_page_copy } = config;
+
+          // Check if preorders are completely disabled/empty
+          if (purchases_enabled === false && visibility === null && custom_button_copy === null && product_page_copy === null) {
+            settingsHtml = '<em style="color:#d82c0d; font-weight:bold;">Preorder not enabled</em>';
+          } else {
+            // Visibility mapping
+            let visText = visibility;
+            if (visibility === 'all') visText = 'All out-of-stock products';
+            if (visibility === 'tagged') visText = 'Only out-of-stock products with tag preorder-enabled';
+            settingsHtml += `<strong>Preorder Button Visibility:</strong> <span style="color:#6d7175;">${visText || 'null'}</span><br/>`;
+
+            // Custom Button Copy mapping
+            settingsHtml += `<strong>Preorder Button Label/Caption:</strong> <span style="color:#6d7175;">${custom_button_copy || 'null'}</span><br/>`;
+
+            // Product Page Copy mapping
+            settingsHtml += `<strong>Preorder Message:</strong> <span style="color:#6d7175;">${product_page_copy || 'null'}</span><br/>`;
+
+
+
+            // Dump any other unhandled keys just so Tier 2 can see raw data
+            const handledKeys = ['purchases_enabled', 'visibility', 'custom_button_copy', 'product_page_copy'];
+            let extraKeysHtml = '';
+            for (const [key, value] of Object.entries(config)) {
+              if (!handledKeys.includes(key) && value !== null) {
+                extraKeysHtml += `<strong>${key}:</strong> <span style="color:#6d7175;">${value}</span><br/>`;
+              }
+            }
+            if (extraKeysHtml) {
+              settingsHtml += `<em>Other Script Variables:</em><br/>${extraKeysHtml}`;
+            }
           }
+
+          settingsDetails.innerHTML = settingsHtml;
+
+          settingsWrapper.appendChild(settingsHeader);
+          settingsWrapper.appendChild(settingsDetails);
+          resultsDiv.appendChild(settingsWrapper);
         }
-
-        settingsDetails.innerHTML = settingsHtml;
-
-        settingsWrapper.appendChild(settingsHeader);
-        settingsWrapper.appendChild(settingsDetails);
-        resultsDiv.appendChild(settingsWrapper);
       }
 
     } else {
