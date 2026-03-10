@@ -14,7 +14,7 @@
   <!-- Section 1: Page Check -->
   <div class="section">
     <div class="tooltip-wrapper" data-tooltip="Analyzes the current page.">
-      <button id="checkBtn" class="primary-btn last-btn">Check Current Page</button>
+      <button id="checkBtn" class="primary-btn last-btn">Check Scripts & Elements</button>
     </div>
 
     <div id="results">
@@ -44,7 +44,18 @@
     </div>
   </div>
 
-  <!-- Section 2: Editor -->
+  <!-- Section 2: BIS Check -->
+  <div class="section">
+    <div class="tooltip-wrapper" data-tooltip="Analyzes JS/JSON of the product to show BIS settings and stock.">
+      <button id="checkBisProductBtn" class="primary-btn last-btn">Check BIS Product</button>
+    </div>
+
+    <div id="bisResults" class="hidden">
+      <!-- BIS results will be injected here -->
+    </div>
+  </div>
+
+  <!-- Section 3: Editor -->
   <div class="section">
     <div class="tooltip-wrapper"
       data-tooltip="Inject the BIS Script Editor to create integration snippets without server access.">
