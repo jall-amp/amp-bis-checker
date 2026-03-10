@@ -13,7 +13,8 @@
 
   <!-- Section 1: Page Check -->
   <div class="section">
-    <div class="tooltip-wrapper" data-tooltip="Analyzes the current page.">
+    <div class="tooltip-wrapper"
+      data-tooltip="Scans the page for the BIS widget script, #BIS_trigger (ID), and .BIS_trigger (Class). Detects if elements are hidden by CSS.">
       <button id="checkBtn" class="primary-btn last-btn">Check Scripts & Elements</button>
     </div>
 
@@ -46,7 +47,8 @@
 
   <!-- Section 2: BIS Check -->
   <div class="section">
-    <div class="tooltip-wrapper" data-tooltip="Analyzes JS/JSON of the product to show BIS settings and stock.">
+    <div class="tooltip-wrapper"
+      data-tooltip="Checks each variant's Stock, Inventory Tracking, Continue Selling, and tag exclusions to determine if the BIS button should show. Must be on a product page.">
       <button id="checkBisProductBtn" class="primary-btn last-btn">Check BIS Product</button>
     </div>
 
@@ -58,7 +60,7 @@
   <!-- Section 3: Editor -->
   <div class="section">
     <div class="tooltip-wrapper"
-      data-tooltip="Inject the BIS Script Editor to create integration snippets without server access.">
+      data-tooltip="Injects the BIS Admin Copy Widget into the page so you can configure and generate integration scripts without backend access.">
       <button id="openEditorBtn" class="primary-btn last-btn">Open BIS Editor</button>
     </div>
   </div>
@@ -66,7 +68,7 @@
   <!-- Section 3: Injector -->
   <div class="section">
     <div class="tooltip-wrapper"
-      data-tooltip="Manually inject a custom script tag into the page. Useful for testing unlinked themes.">
+      data-tooltip="Paste a BIS widget URL and inject it into the page. Useful for testing widgets on unlinked or custom themes.">
       <div class="inject-section">
         <input type="text" id="injectScriptUrl" placeholder="Paste BIS Admin Copy Widget URL here..." />
         <button id="injectScriptBtn" class="primary-btn last-btn">Inject Script</button>
@@ -76,7 +78,8 @@
 
   <!-- Section 4: Snippets -->
   <div class="section">
-    <div class="tooltip-wrapper" data-tooltip="Copy the V1 Collection standard snippet straight to your clipboard.">
+    <div class="tooltip-wrapper"
+      data-tooltip="Copies the standard V1 Collection Liquid snippet to your clipboard for pasting into collection templates.">
       <button id="copyCollectionsBtn" class="primary-btn last-btn">Copy V1 Collection Snippet</button>
     </div>
   </div>
@@ -88,7 +91,8 @@
 
   <!-- Section 5: Preorder Check -->
   <div class="section">
-    <div class="tooltip-wrapper" data-tooltip="Analyzes JS/JSON of the product to show stock and preorder policy.">
+    <div class="tooltip-wrapper"
+      data-tooltip="Checks each variant's Stock and Continue Selling policy to determine if the Preorder button should show. Detects App Embed status and visibility settings. Must be on a product page.">
       <button id="checkPreorderBtn" class="primary-btn last-btn">Check Preorder Product</button>
     </div>
 
