@@ -432,20 +432,51 @@ document.getElementById('checkCustomJsBtn').addEventListener('click', async () =
       return;
     }
 
-    // Fetch the BIS Widget JSON
-    const url = `https://app.backinstock.org/api/bist/widget.json?shop=${shopDomain}&bist-key=Vkjc9ZT6KAJDGEos6w87acojjGkcX1fO`;
-    const response = await fetch(url);
+    // Fetch the BIS Widget JSON and the Fallback JS concurrently
+    const widgetUrl = `https://app.backinstock.org/api/bist/widget.json?shop=${shopDomain}&bist-key=Vkjc9ZT6KAJDGEos6w87acojjGkcX1fO`;
+    const fallbackUrl = `https://script.google.com/macros/s/AKfycbwLSGxholUvq5mrLJ9esQx4S40oESS-ph4XULvx2e2RmkmkOCHEQxH2npyto-55qT09/exec?shop=${shopDomain}`;
 
-    if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+    let widgetResponse, fallbackResponse;
+    try {
+      [widgetResponse, fallbackResponse] = await Promise.all([
+        fetch(widgetUrl),
+        fetch(fallbackUrl)
+      ]);
+    } catch (e) {
+      throw new Error('Network error when fetching data: ' + e.message);
     }
 
-    const data = await response.json();
+    if (!widgetResponse.ok) {
+        throw new Error(`BIS API HTTP error! status: ${widgetResponse.status}`);
+    }
+
+    const data = await widgetResponse.json();
     const customJs = data.custom_js;
 
-    if (customJs && customJs.trim() !== '') {
-        resultsDiv.classList.remove('hidden');
+    let fallbackJs = null;
+    try {
+      if (fallbackResponse) {
+        if (fallbackResponse.ok) {
+          const fallbackData = await fallbackResponse.json();
+          if (fallbackData.status === 'success' && fallbackData.customJs) {
+            fallbackJs = fallbackData.customJs;
+          } else if (fallbackData.status === 'error') {
+            console.warn('Apps script returned error:', fallbackData.message);
+          }
+        } else {
+           const errText = await fallbackResponse.text();
+           console.error('Fallback fetch failed with status:', fallbackResponse.status, errText);
+           alert(`Fallback error ${fallbackResponse.status}: ${errText}`);
+        }
+      }
+    } catch (e) {
+      console.error('Error fetching/parsing fallback JS:', e);
+      alert('Error fetching fallback JS: ' + e.message);
+    }
 
+    resultsDiv.classList.remove('hidden');
+
+    if (customJs && customJs.trim() !== '') {
         const wrapper = document.createElement('div');
         wrapper.className = 'item-wrapper';
 
@@ -472,16 +503,102 @@ document.getElementById('checkCustomJsBtn').addEventListener('click', async () =
           });
         };
 
+        const saveFallbackBtn = document.createElement('button');
+        saveFallbackBtn.className = 'highlight-btn save-fallback-btn';
+        saveFallbackBtn.textContent = 'Save as Fallback';
+        saveFallbackBtn.onclick = async () => {
+          const originalText = saveFallbackBtn.textContent;
+          saveFallbackBtn.textContent = 'Saving...';
+          saveFallbackBtn.disabled = true;
+
+          try {
+             // We use POST with JSON body for Apps Script
+             const saveUrl = `https://script.google.com/macros/s/AKfycbwLSGxholUvq5mrLJ9esQx4S40oESS-ph4XULvx2e2RmkmkOCHEQxH2npyto-55qT09/exec`;
+             const saveRes = await fetch(saveUrl, {
+                method: 'POST',
+                // Using text/plain avoids preflight CORS on Apps Script
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify({ shop: shopDomain, customJs: customJs })
+             });
+             const saveData = await saveRes.json();
+             if (saveData.status === 'success') {
+               saveFallbackBtn.textContent = 'Saved!';
+               // We could auto-reload here or rely on the user seeing success
+               setTimeout(() => { document.getElementById('checkCustomJsBtn').click(); }, 1500);
+             } else {
+               saveFallbackBtn.textContent = 'Error';
+               console.error('Save failed:', saveData.message);
+             }
+          } catch(e) {
+             console.error('Exception on save:', e);
+             saveFallbackBtn.textContent = 'Error';
+          }
+          
+          if (saveFallbackBtn.textContent === 'Error') {
+             setTimeout(() => { 
+                saveFallbackBtn.textContent = originalText; 
+                saveFallbackBtn.disabled = false; 
+             }, 2000);
+          }
+        };
+
         actionsDiv.appendChild(copyBtn);
+        actionsDiv.appendChild(saveFallbackBtn);
         wrapper.appendChild(header);
         wrapper.appendChild(textarea);
         wrapper.appendChild(actionsDiv);
         resultsDiv.appendChild(wrapper);
 
     } else {
-        resultsDiv.classList.remove('hidden');
-        resultsDiv.innerHTML = '<p style="color:#d9534f; font-weight:bold; padding: 10px; margin: 0; background: #fdf2f2; border: 1px solid #f2dede; border-radius: 4px;">No Custom JS configured for this store.</p>';
+        const noJsError = document.createElement('p');
+        noJsError.style.cssText = "color:#d9534f; font-weight:bold; padding: 10px; margin: 0; background: #fdf2f2; border: 1px solid #f2dede; border-radius: 4px;";
+        noJsError.textContent = 'No Custom JS configured for this store.';
+        resultsDiv.appendChild(noJsError);
     }
+
+    // Render Fallback Section
+    const fallbackWrapper = document.createElement('div');
+    fallbackWrapper.className = 'item-wrapper';
+    fallbackWrapper.style.marginTop = '15px';
+
+    const fallbackHeader = document.createElement('div');
+    fallbackHeader.className = 'item-header';
+    fallbackHeader.textContent = 'Last Known Working JS (Fallback):';
+    fallbackWrapper.appendChild(fallbackHeader);
+
+    if (fallbackJs && fallbackJs.trim() !== '') {
+        const fallbackTextarea = document.createElement('textarea');
+        fallbackTextarea.readOnly = true;
+        fallbackTextarea.value = fallbackJs;
+        
+        const fallbackActionsDiv = document.createElement('div');
+        fallbackActionsDiv.className = 'action-buttons';
+
+        const fallbackCopyBtn = document.createElement('button');
+        fallbackCopyBtn.className = 'copy-btn';
+        fallbackCopyBtn.textContent = 'Copy Fallback';
+        fallbackCopyBtn.onclick = () => {
+          fallbackTextarea.select();
+          navigator.clipboard.writeText(fallbackTextarea.value).then(() => {
+            const originalText = fallbackCopyBtn.textContent;
+            fallbackCopyBtn.textContent = 'Copied!';
+            setTimeout(() => { fallbackCopyBtn.textContent = originalText; }, 1500);
+          });
+        };
+
+        fallbackActionsDiv.appendChild(fallbackCopyBtn);
+        fallbackWrapper.appendChild(fallbackTextarea);
+        fallbackWrapper.appendChild(fallbackActionsDiv);
+    } else {
+        const noFallbackMsg = document.createElement('p');
+        noFallbackMsg.textContent = 'No fallback saved';
+        noFallbackMsg.style.fontStyle = 'italic';
+        noFallbackMsg.style.color = '#777';
+        noFallbackMsg.style.margin = '10px 0 0 0';
+        fallbackWrapper.appendChild(noFallbackMsg);
+    }
+
+    resultsDiv.appendChild(fallbackWrapper);
 
   } catch (error) {
     console.error('Error fetching Custom JS:', error);
