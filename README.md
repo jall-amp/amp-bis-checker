@@ -96,7 +96,21 @@ At the bottom, a collapsible section shows the full `BIS.Config` object — all 
 
 ---
 
-### 3. 🖊️ Open BIS Editor
+### 3. 📝 Check Custom JS
+
+> **What it does:** Fetches the current Custom JS snippet configured in the merchant's BIS admin, and manages a shared "Last Known Working" fallback snippet.
+
+**Must be on a Shopify storefront.**
+
+#### Core Features
+- **Fetch Current JS:** Queries the BIS widget API using the Shopify domain to retrieve exactly what the merchant has pasted into their BIS "Custom JS" setting.
+- **Copy Button:** Instantly copy the retrieved JS to your clipboard for local analysis or testing.
+- **Save as Fallback:** A critical tool for the Tier 2 team. Clicking this sends the current Custom JS to a shared Google Sheet. 
+- **Last Known Working JS (Fallback):** Automatically retrieves the last Custom JS you (or any other agent) saved as a fallback for this specific store. If the merchant breaks their widget, you can easily copy and restore the last working version!
+
+---
+
+### 4. 🖊️ Open BIS Editor
 
 > **What it does:** Injects the BIS Admin Copy Widget directly into the page.
 
@@ -107,7 +121,7 @@ At the bottom, a collapsible section shows the full `BIS.Config` object — all 
 
 ---
 
-### 4. 💉 Inject Script
+### 5. 💉 Inject Script
 
 > **What it does:** Manually inject an external script URL into the page's `<head>`.
 
@@ -117,7 +131,7 @@ At the bottom, a collapsible section shows the full `BIS.Config` object — all 
 
 ---
 
-### 5. 📋 Copy V1 Collection Snippet
+### 6. 📋 Copy V1 Collection Snippet
 
 > **What it does:** One-click copy of the standard Liquid HTML block for collection pages.
 
@@ -125,7 +139,7 @@ Copies the snippet needed to render BIS "Email when available" buttons on produc
 
 ---
 
-### 6. 🛒 Check Preorder Product
+### 7. 🛒 Check Preorder Product
 
 > **What it does:** Analyzes whether the Preorder button should appear for each variant.
 
@@ -194,6 +208,11 @@ For preorder to show, the variant must be:
 ---
 
 ## 📝 Changelog
+
+### v1.4 — March 2026
+- ✨ Added **Check Custom JS** to fetch and inspect exact JS configs
+- 💾 Built **Last Known Working JS (Fallback)** using Google Apps Script integration
+- 🎨 Synchronized UI buttons with standard AMP extension styling
 
 ### v1.3 — March 2026
 - ✨ Added **Check BIS Product** with full variant analysis
