@@ -390,6 +390,108 @@ document.getElementById('injectScriptBtn').addEventListener('click', async () =>
   });
 });
 
+document.getElementById('checkCustomJsBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('checkCustomJsBtn');
+  const resultsDiv = document.getElementById('customJsResults');
+
+  // Reset Results UI
+  resultsDiv.innerHTML = '';
+  resultsDiv.classList.add('hidden');
+
+  btn.textContent = 'Checking...';
+  btn.disabled = true;
+
+  try {
+    let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+
+    if (!tab.url.startsWith('http')) {
+      showError('Cannot run on this page.');
+      btn.textContent = 'Check Custom JS';
+      btn.disabled = false;
+      return;
+    }
+
+    // Attempt to get Shopify domain from the active tab's global window object
+    const results = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      world: 'MAIN',
+      func: () => {
+        if (window.Shopify && window.Shopify.shop) {
+          return window.Shopify.shop;
+        }
+        return null;
+      }
+    });
+
+    const shopDomain = results && results[0] && results[0].result;
+
+    if (!shopDomain) {
+      showError('Could not find Shopify.shop domain. Ensure you are on a Shopify storefront.');
+      btn.textContent = 'Check Custom JS';
+      btn.disabled = false;
+      return;
+    }
+
+    // Fetch the BIS Widget JSON
+    const url = `https://app.backinstock.org/api/bist/widget.json?shop=${shopDomain}&bist-key=Vkjc9ZT6KAJDGEos6w87acojjGkcX1fO`;
+    const response = await fetch(url);
+
+    if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const customJs = data.custom_js;
+
+    if (customJs && customJs.trim() !== '') {
+        resultsDiv.classList.remove('hidden');
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'item-wrapper';
+
+        const header = document.createElement('div');
+        header.className = 'item-header';
+        header.textContent = 'Custom JS found:';
+
+        const actionsDiv = document.createElement('div');
+        actionsDiv.className = 'action-buttons';
+
+        const textarea = document.createElement('textarea');
+        textarea.readOnly = true;
+        textarea.value = customJs;
+
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'copy-btn';
+        copyBtn.textContent = 'Copy';
+        copyBtn.onclick = () => {
+          textarea.select();
+          navigator.clipboard.writeText(textarea.value).then(() => {
+            const originalText = copyBtn.textContent;
+            copyBtn.textContent = 'Copied!';
+            setTimeout(() => { copyBtn.textContent = originalText; }, 1500);
+          });
+        };
+
+        actionsDiv.appendChild(copyBtn);
+        wrapper.appendChild(header);
+        wrapper.appendChild(textarea);
+        wrapper.appendChild(actionsDiv);
+        resultsDiv.appendChild(wrapper);
+
+    } else {
+        resultsDiv.classList.remove('hidden');
+        resultsDiv.innerHTML = '<p style="color:#d9534f; font-weight:bold; padding: 10px; margin: 0; background: #fdf2f2; border: 1px solid #f2dede; border-radius: 4px;">No Custom JS configured for this store.</p>';
+    }
+
+  } catch (error) {
+    console.error('Error fetching Custom JS:', error);
+    showError('Failed to fetch Custom JS.');
+  } finally {
+    btn.textContent = 'Check Custom JS';
+    btn.disabled = false;
+  }
+});
+
 function openBisEditor() {
   // This tool is used in the storefront to generate integration scripts
 
