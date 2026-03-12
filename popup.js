@@ -2403,7 +2403,7 @@ document.getElementById('checkPreorderBtn').addEventListener('click', async () =
 
 
 
-            // Dump any other unhandled keys just so Tier 2 can see raw data
+        // Dump any other unhandled keys just so Tier 2 can see raw data
             const handledKeys = ['purchases_enabled', 'visibility', 'custom_button_copy', 'product_page_copy'];
             let extraKeysHtml = '';
             for (const [key, value] of Object.entries(config)) {
@@ -2428,4 +2428,89 @@ document.getElementById('checkPreorderBtn').addEventListener('click', async () =
       showPreorderError('No variant data returned.');
     }
   });
+});
+
+// ----------------------------------------------------
+// New: Check for Updates Functionality
+// ----------------------------------------------------
+document.getElementById('checkUpdatesBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('checkUpdatesBtn');
+  const resultsDiv = document.getElementById('updateResults');
+
+  btn.textContent = 'Checking...';
+  btn.disabled = true;
+  resultsDiv.innerHTML = '';
+  resultsDiv.classList.add('hidden');
+
+  try {
+    const response = await fetch('https://api.github.com/repos/jall-amp/amp-bis-checker/releases/latest');
+    if (!response.ok) {
+      throw new Error('Failed to fetch latest release from GitHub.');
+    }
+
+    const releaseData = await response.json();
+    const latestVersion = releaseData.tag_name; // e.g., 'v1.2' or '1.2'
+    const cleanLatestVersion = latestVersion.replace(/^v/, ''); // remove 'v' prefix if present
+    
+    // Get current version from manifest.json
+    const manifest = chrome.runtime.getManifest();
+    const currentVersion = manifest.version;
+
+    resultsDiv.classList.remove('hidden');
+    resultsDiv.style.marginTop = '12px';
+
+    if (currentVersion === cleanLatestVersion || currentVersion > cleanLatestVersion) {
+      // Up to date
+      resultsDiv.innerHTML = `
+        <div style="padding: 10px; background-color: #e3f1df; border-left: 4px solid #008060; font-size: 12px;">
+          <strong>Up to date!</strong><br/>
+          You are running version ${currentVersion}.
+        </div>
+      `;
+    } else {
+      // Update available
+      let zipUrl = '';
+      if (releaseData.assets && releaseData.assets.length > 0) {
+        const zipAsset = releaseData.assets.find(a => a.name === 'bischecker.zip' || a.name.endsWith('.zip'));
+        if (zipAsset) {
+          zipUrl = zipAsset.browser_download_url;
+        }
+      }
+      
+      if (!zipUrl) {
+         // Fallback to source code zip if no explicit asset was uploaded
+         zipUrl = releaseData.zipball_url;
+      }
+
+      resultsDiv.innerHTML = `
+        <div style="padding: 10px; background-color: #f4f6f8; border-left: 4px solid #006fbb; font-size: 12px;">
+          <strong>Update Available! (v${cleanLatestVersion})</strong><br/>
+          <span style="color: #6d7175; display: inline-block; margin-top: 4px;">
+            Your version: ${currentVersion}
+          </span>
+          <div style="margin-top: 8px;">
+            <a href="${zipUrl}" target="_blank" style="display: inline-block; text-decoration: none; padding: 6px 10px; background-color: #006fbb; color: white; border-radius: 4px; font-weight: bold; font-size: 11px;">
+              Download ZIP
+            </a>
+          </div>
+          <div style="margin-top: 8px; font-size: 11px; color: #6d7175;">
+            <strong>How to update:</strong> Extract the ZIP and replace the existing files in your local extension folder. Then go to <code>chrome://extensions</code> and click the "Reload" icon for this extension.
+          </div>
+        </div>
+      `;
+    }
+  } catch (error) {
+    console.error('Update check error:', error);
+    resultsDiv.classList.remove('hidden');
+    resultsDiv.style.marginTop = '12px';
+    resultsDiv.innerHTML = `
+      <div style="padding: 10px; background-color: #ffeef0; border-left: 4px solid #d82c0d; font-size: 12px;">
+        <strong>Error checking for updates.</strong><br/>
+        Please try again later.
+      </div>
+    `;
+  } finally {
+    btn.textContent = 'Check for Updates';
+    btn.disabled = false;
+  }
 });
