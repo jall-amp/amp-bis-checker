@@ -2,6 +2,7 @@ function showError(message) {
   const errorMsg = document.getElementById('errorMsg');
   errorMsg.textContent = message;
   errorMsg.classList.remove('hidden');
+  errorMsg.scrollIntoView({ behavior: 'smooth', block: 'start' });
   setTimeout(() => {
     errorMsg.classList.add('hidden');
   }, 5000);
