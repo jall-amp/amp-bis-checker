@@ -23,9 +23,12 @@ The **AMP BIS (Back in Stock) & Preorder Checker** is a proprietary troubleshoot
 6. Click the puzzle-piece icon in your toolbar and **pin** the extension for quick access.
 
 ### Updating the Extension
-1. Pull the latest changes from `main`.
-2. Go to `chrome://extensions/`.
-3. Find **"AMP BIS CHECKER"** and click the **↻ reload** icon on its card.
+1. Open the **AMP BIS CHECKER** extension popup.
+2. If an update is available, you will automatically be scrolled to the bottom **UPDATES** section with a blue banner.
+3. Click the **Download ZIP** button.
+4. Extract the newly downloaded ZIP file and replace your existing local `bischecker` folder files.
+5. Go back to `chrome://extensions/`.
+6. Click the **↻ reload** icon on the **AMP BIS CHECKER** card to apply the update.
 
 ---
 
@@ -181,6 +184,30 @@ For preorder to show, the variant must be:
 - Does **not** store, request, or embed any private API credentials
 - Only reads public DOM content and Shopify's standard front-end JSON architecture
 - Permissions are limited to `activeTab` and `scripting` (no background data collection)
+- The extension requires `host_permissions` to query the GitHub public API for `bischecker` release notes.
+
+---
+
+## 👩‍💻 Developer Guide: Creating a Release
+
+When you finish making code updates to `main`, you can trigger the automated GitHub Action to build and distribute the new ZIP file to all Tier 2 agents via the built-in update tool.
+
+1. **Update the Manifest Version**
+   Open `manifest.json` and bump the `"version"` field (e.g. from `"1.4.0"` to `"1.5.0"`). This is critical; without it, the users' Check for Updates button won't realize a new version exists!
+
+2. **Commit Your Code**
+   ```bash
+   git add .
+   git commit -m "feat: my new feature description"
+   git push origin main
+   ```
+
+3. **Tag for Release**
+   Create a git tag with a `v` prefix matching your `manifest.json` version, and push it. This automatically triggers `.github/workflows/release.yml` to package and upload the `bischecker.zip` to the new GitHub Release page!
+   ```bash
+   git tag v1.5.0
+   git push origin v1.5.0
+   ```
 
 ---
 
@@ -209,7 +236,11 @@ For preorder to show, the variant must be:
 
 ## 📝 Changelog
 
+### v1.5 — March 2026
+- 📜 Updated `README.md` with Auto-Update and Developer Release instructions
+
 ### v1.4 — March 2026
+- ✨ Added **Auto-Check for Updates** logic on extension load
 - ✨ Added **Check Custom JS** to fetch and inspect exact JS configs
 - 💾 Built **Last Known Working JS (Fallback)** using Google Apps Script integration
 - 🎨 Synchronized UI buttons with standard AMP extension styling
