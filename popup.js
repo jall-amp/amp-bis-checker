@@ -2433,14 +2433,16 @@ document.getElementById('checkPreorderBtn').addEventListener('click', async () =
 // ----------------------------------------------------
 // New: Check for Updates Functionality
 // ----------------------------------------------------
-document.getElementById('checkUpdatesBtn').addEventListener('click', async () => {
+async function performUpdateCheck(isAutoCheck = false) {
   const btn = document.getElementById('checkUpdatesBtn');
   const resultsDiv = document.getElementById('updateResults');
 
-  btn.textContent = 'Checking...';
-  btn.disabled = true;
-  resultsDiv.innerHTML = '';
-  resultsDiv.classList.add('hidden');
+  if (!isAutoCheck) {
+    btn.textContent = 'Checking...';
+    btn.disabled = true;
+    resultsDiv.innerHTML = '';
+    resultsDiv.classList.add('hidden');
+  }
 
   try {
     const response = await fetch('https://api.github.com/repos/jall-amp/amp-bis-checker/releases/latest');
@@ -2456,19 +2458,23 @@ document.getElementById('checkUpdatesBtn').addEventListener('click', async () =>
     const manifest = chrome.runtime.getManifest();
     const currentVersion = manifest.version;
 
-    resultsDiv.classList.remove('hidden');
-    resultsDiv.style.marginTop = '12px';
-
     if (currentVersion === cleanLatestVersion || currentVersion > cleanLatestVersion) {
-      // Up to date
-      resultsDiv.innerHTML = `
-        <div style="padding: 10px; background-color: #e3f1df; border-left: 4px solid #008060; font-size: 12px;">
-          <strong>Up to date!</strong><br/>
-          You are running version ${currentVersion}.
-        </div>
-      `;
+      if (!isAutoCheck) {
+        resultsDiv.classList.remove('hidden');
+        resultsDiv.style.marginTop = '12px';
+        // Up to date
+        resultsDiv.innerHTML = `
+          <div style="padding: 10px; background-color: #e3f1df; border-left: 4px solid #008060; font-size: 12px;">
+            <strong>Up to date!</strong><br/>
+            You are running version ${currentVersion}.
+          </div>
+        `;
+      }
     } else {
       // Update available
+      resultsDiv.classList.remove('hidden');
+      resultsDiv.style.marginTop = '12px';
+
       let zipUrl = '';
       if (releaseData.assets && releaseData.assets.length > 0) {
         const zipAsset = releaseData.assets.find(a => a.name === 'bischecker.zip' || a.name.endsWith('.zip'));
@@ -2498,19 +2504,35 @@ document.getElementById('checkUpdatesBtn').addEventListener('click', async () =>
           </div>
         </div>
       `;
+
+      if (isAutoCheck) {
+        // Scroll to the update section if we found an update on auto-load
+        setTimeout(() => {
+          resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        }, 100);
+      }
     }
   } catch (error) {
     console.error('Update check error:', error);
-    resultsDiv.classList.remove('hidden');
-    resultsDiv.style.marginTop = '12px';
-    resultsDiv.innerHTML = `
-      <div style="padding: 10px; background-color: #ffeef0; border-left: 4px solid #d82c0d; font-size: 12px;">
-        <strong>Error checking for updates.</strong><br/>
-        Please try again later.
-      </div>
-    `;
+    if (!isAutoCheck) {
+      resultsDiv.classList.remove('hidden');
+      resultsDiv.style.marginTop = '12px';
+      resultsDiv.innerHTML = `
+        <div style="padding: 10px; background-color: #ffeef0; border-left: 4px solid #d82c0d; font-size: 12px;">
+          <strong>Error checking for updates.</strong><br/>
+          Please try again later.
+        </div>
+      `;
+    }
   } finally {
-    btn.textContent = 'Check for Updates';
-    btn.disabled = false;
+    if (!isAutoCheck) {
+      btn.textContent = 'Check for Updates';
+      btn.disabled = false;
+    }
   }
-});
+}
+
+document.getElementById('checkUpdatesBtn').addEventListener('click', () => performUpdateCheck(false));
+
+// Auto-check on popup load
+performUpdateCheck(true);
