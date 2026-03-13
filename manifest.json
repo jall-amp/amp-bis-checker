@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "AMP BIS CHECKER",
-  "version": "1.5.2",
+  "version": "1.5.3",
   "description": "Checks if the Back in Stock (BIS) script and trigger elements (#BIS_trigger or .BIS_trigger) are installed on the current page.",
   "permissions": [
     "activeTab",

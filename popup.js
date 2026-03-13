@@ -448,7 +448,7 @@ document.getElementById('checkCustomJsBtn').addEventListener('click', async () =
     }
 
     if (!widgetResponse.ok) {
-        throw new Error(`BIS API HTTP error! status: ${widgetResponse.status}`);
+      throw new Error(`BIS API HTTP error! status: ${widgetResponse.status}`);
     }
 
     const data = await widgetResponse.json();
@@ -465,9 +465,9 @@ document.getElementById('checkCustomJsBtn').addEventListener('click', async () =
             console.warn('Apps script returned error:', fallbackData.message);
           }
         } else {
-           const errText = await fallbackResponse.text();
-           console.error('Fallback fetch failed with status:', fallbackResponse.status, errText);
-           alert(`Fallback error ${fallbackResponse.status}: ${errText}`);
+          const errText = await fallbackResponse.text();
+          console.error('Fallback fetch failed with status:', fallbackResponse.status, errText);
+          alert(`Fallback error ${fallbackResponse.status}: ${errText}`);
         }
       }
     } catch (e) {
@@ -478,83 +478,83 @@ document.getElementById('checkCustomJsBtn').addEventListener('click', async () =
     resultsDiv.classList.remove('hidden');
 
     if (customJs && customJs.trim() !== '') {
-        const wrapper = document.createElement('div');
-        wrapper.className = 'item-wrapper';
+      const wrapper = document.createElement('div');
+      wrapper.className = 'item-wrapper';
 
-        const header = document.createElement('div');
-        header.className = 'item-header';
-        header.textContent = 'Custom JS found:';
+      const header = document.createElement('div');
+      header.className = 'item-header';
+      header.textContent = 'Custom JS found:';
 
-        const actionsDiv = document.createElement('div');
-        actionsDiv.className = 'action-buttons';
+      const actionsDiv = document.createElement('div');
+      actionsDiv.className = 'action-buttons';
 
-        const textarea = document.createElement('textarea');
-        textarea.readOnly = true;
-        textarea.value = customJs;
+      const textarea = document.createElement('textarea');
+      textarea.readOnly = true;
+      textarea.value = customJs;
 
-        const copyBtn = document.createElement('button');
-        copyBtn.className = 'copy-btn';
-        copyBtn.textContent = 'Copy';
-        copyBtn.onclick = () => {
-          textarea.select();
-          navigator.clipboard.writeText(textarea.value).then(() => {
-            const originalText = copyBtn.textContent;
-            copyBtn.textContent = 'Copied!';
-            setTimeout(() => { copyBtn.textContent = originalText; }, 1500);
+      const copyBtn = document.createElement('button');
+      copyBtn.className = 'copy-btn';
+      copyBtn.textContent = 'Copy';
+      copyBtn.onclick = () => {
+        textarea.select();
+        navigator.clipboard.writeText(textarea.value).then(() => {
+          const originalText = copyBtn.textContent;
+          copyBtn.textContent = 'Copied!';
+          setTimeout(() => { copyBtn.textContent = originalText; }, 1500);
+        });
+      };
+
+      const saveFallbackBtn = document.createElement('button');
+      saveFallbackBtn.className = 'highlight-btn save-fallback-btn';
+      saveFallbackBtn.textContent = 'Save as Fallback';
+      saveFallbackBtn.onclick = async () => {
+        const originalText = saveFallbackBtn.textContent;
+        saveFallbackBtn.textContent = 'Saving...';
+        saveFallbackBtn.disabled = true;
+
+        try {
+          // We use POST with JSON body for Apps Script
+          const saveUrl = `https://script.google.com/macros/s/AKfycbwLSGxholUvq5mrLJ9esQx4S40oESS-ph4XULvx2e2RmkmkOCHEQxH2npyto-55qT09/exec`;
+          const saveRes = await fetch(saveUrl, {
+            method: 'POST',
+            // Using text/plain avoids preflight CORS on Apps Script
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify({ shop: shopDomain, customJs: customJs })
           });
-        };
-
-        const saveFallbackBtn = document.createElement('button');
-        saveFallbackBtn.className = 'highlight-btn save-fallback-btn';
-        saveFallbackBtn.textContent = 'Save as Fallback';
-        saveFallbackBtn.onclick = async () => {
-          const originalText = saveFallbackBtn.textContent;
-          saveFallbackBtn.textContent = 'Saving...';
-          saveFallbackBtn.disabled = true;
-
-          try {
-             // We use POST with JSON body for Apps Script
-             const saveUrl = `https://script.google.com/macros/s/AKfycbwLSGxholUvq5mrLJ9esQx4S40oESS-ph4XULvx2e2RmkmkOCHEQxH2npyto-55qT09/exec`;
-             const saveRes = await fetch(saveUrl, {
-                method: 'POST',
-                // Using text/plain avoids preflight CORS on Apps Script
-                headers: { 'Content-Type': 'text/plain' },
-                body: JSON.stringify({ shop: shopDomain, customJs: customJs })
-             });
-             const saveData = await saveRes.json();
-             if (saveData.status === 'success') {
-               saveFallbackBtn.textContent = 'Saved!';
-               // We could auto-reload here or rely on the user seeing success
-               setTimeout(() => { document.getElementById('checkCustomJsBtn').click(); }, 1500);
-             } else {
-               saveFallbackBtn.textContent = 'Error';
-               console.error('Save failed:', saveData.message);
-             }
-          } catch(e) {
-             console.error('Exception on save:', e);
-             saveFallbackBtn.textContent = 'Error';
+          const saveData = await saveRes.json();
+          if (saveData.status === 'success') {
+            saveFallbackBtn.textContent = 'Saved!';
+            // We could auto-reload here or rely on the user seeing success
+            setTimeout(() => { document.getElementById('checkCustomJsBtn').click(); }, 1500);
+          } else {
+            saveFallbackBtn.textContent = 'Error';
+            console.error('Save failed:', saveData.message);
           }
-          
-          if (saveFallbackBtn.textContent === 'Error') {
-             setTimeout(() => { 
-                saveFallbackBtn.textContent = originalText; 
-                saveFallbackBtn.disabled = false; 
-             }, 2000);
-          }
-        };
+        } catch (e) {
+          console.error('Exception on save:', e);
+          saveFallbackBtn.textContent = 'Error';
+        }
 
-        actionsDiv.appendChild(copyBtn);
-        actionsDiv.appendChild(saveFallbackBtn);
-        wrapper.appendChild(header);
-        wrapper.appendChild(textarea);
-        wrapper.appendChild(actionsDiv);
-        resultsDiv.appendChild(wrapper);
+        if (saveFallbackBtn.textContent === 'Error') {
+          setTimeout(() => {
+            saveFallbackBtn.textContent = originalText;
+            saveFallbackBtn.disabled = false;
+          }, 2000);
+        }
+      };
+
+      actionsDiv.appendChild(copyBtn);
+      actionsDiv.appendChild(saveFallbackBtn);
+      wrapper.appendChild(header);
+      wrapper.appendChild(textarea);
+      wrapper.appendChild(actionsDiv);
+      resultsDiv.appendChild(wrapper);
 
     } else {
-        const noJsError = document.createElement('p');
-        noJsError.style.cssText = "color:#d9534f; font-weight:bold; padding: 10px; margin: 0; background: #fdf2f2; border: 1px solid #f2dede; border-radius: 4px;";
-        noJsError.textContent = 'No Custom JS configured for this store.';
-        resultsDiv.appendChild(noJsError);
+      const noJsError = document.createElement('p');
+      noJsError.style.cssText = "color:#d9534f; font-weight:bold; padding: 10px; margin: 0; background: #fdf2f2; border: 1px solid #f2dede; border-radius: 4px;";
+      noJsError.textContent = 'No Custom JS configured for this store.';
+      resultsDiv.appendChild(noJsError);
     }
 
     // Render Fallback Section
@@ -568,35 +568,35 @@ document.getElementById('checkCustomJsBtn').addEventListener('click', async () =
     fallbackWrapper.appendChild(fallbackHeader);
 
     if (fallbackJs && fallbackJs.trim() !== '') {
-        const fallbackTextarea = document.createElement('textarea');
-        fallbackTextarea.readOnly = true;
-        fallbackTextarea.value = fallbackJs;
-        
-        const fallbackActionsDiv = document.createElement('div');
-        fallbackActionsDiv.className = 'action-buttons';
+      const fallbackTextarea = document.createElement('textarea');
+      fallbackTextarea.readOnly = true;
+      fallbackTextarea.value = fallbackJs;
 
-        const fallbackCopyBtn = document.createElement('button');
-        fallbackCopyBtn.className = 'copy-btn';
-        fallbackCopyBtn.textContent = 'Copy Fallback';
-        fallbackCopyBtn.onclick = () => {
-          fallbackTextarea.select();
-          navigator.clipboard.writeText(fallbackTextarea.value).then(() => {
-            const originalText = fallbackCopyBtn.textContent;
-            fallbackCopyBtn.textContent = 'Copied!';
-            setTimeout(() => { fallbackCopyBtn.textContent = originalText; }, 1500);
-          });
-        };
+      const fallbackActionsDiv = document.createElement('div');
+      fallbackActionsDiv.className = 'action-buttons';
 
-        fallbackActionsDiv.appendChild(fallbackCopyBtn);
-        fallbackWrapper.appendChild(fallbackTextarea);
-        fallbackWrapper.appendChild(fallbackActionsDiv);
+      const fallbackCopyBtn = document.createElement('button');
+      fallbackCopyBtn.className = 'copy-btn';
+      fallbackCopyBtn.textContent = 'Copy Fallback';
+      fallbackCopyBtn.onclick = () => {
+        fallbackTextarea.select();
+        navigator.clipboard.writeText(fallbackTextarea.value).then(() => {
+          const originalText = fallbackCopyBtn.textContent;
+          fallbackCopyBtn.textContent = 'Copied!';
+          setTimeout(() => { fallbackCopyBtn.textContent = originalText; }, 1500);
+        });
+      };
+
+      fallbackActionsDiv.appendChild(fallbackCopyBtn);
+      fallbackWrapper.appendChild(fallbackTextarea);
+      fallbackWrapper.appendChild(fallbackActionsDiv);
     } else {
-        const noFallbackMsg = document.createElement('p');
-        noFallbackMsg.textContent = 'No fallback saved';
-        noFallbackMsg.style.fontStyle = 'italic';
-        noFallbackMsg.style.color = '#777';
-        noFallbackMsg.style.margin = '10px 0 0 0';
-        fallbackWrapper.appendChild(noFallbackMsg);
+      const noFallbackMsg = document.createElement('p');
+      noFallbackMsg.textContent = 'No fallback saved';
+      noFallbackMsg.style.fontStyle = 'italic';
+      noFallbackMsg.style.color = '#777';
+      noFallbackMsg.style.margin = '10px 0 0 0';
+      fallbackWrapper.appendChild(noFallbackMsg);
     }
 
     resultsDiv.appendChild(fallbackWrapper);
@@ -2279,7 +2279,7 @@ document.getElementById('checkPreorderBtn').addEventListener('click', async () =
             }
             const tagColor = hasTag ? '#008060' : '#d82c0d';
             const tagDisplay = `<span style = "color:${tagColor}; font-weight:bold;" > ${hasTag ? 'True' : 'False'}</span> `;
-            details.innerHTML += `<strong> Tagged with preorder - enabled:</strong> ${tagDisplay} <br />`;
+            details.innerHTML += `<strong> Tagged with preorder-enabled:</strong> ${tagDisplay} <br />`;
 
             const willShowPreorderTagged = willShowPreorder && hasTag;
 
@@ -2404,7 +2404,7 @@ document.getElementById('checkPreorderBtn').addEventListener('click', async () =
 
 
 
-        // Dump any other unhandled keys just so Tier 2 can see raw data
+            // Dump any other unhandled keys just so Tier 2 can see raw data
             const handledKeys = ['purchases_enabled', 'visibility', 'custom_button_copy', 'product_page_copy'];
             let extraKeysHtml = '';
             for (const [key, value] of Object.entries(config)) {
@@ -2454,7 +2454,7 @@ async function performUpdateCheck(isAutoCheck = false) {
     const releaseData = await response.json();
     const latestVersion = releaseData.tag_name; // e.g., 'v1.2' or '1.2'
     const cleanLatestVersion = latestVersion.replace(/^v/, ''); // remove 'v' prefix if present
-    
+
     // Get current version from manifest.json
     const manifest = chrome.runtime.getManifest();
     const currentVersion = manifest.version;
@@ -2483,10 +2483,10 @@ async function performUpdateCheck(isAutoCheck = false) {
           zipUrl = zipAsset.browser_download_url;
         }
       }
-      
+
       if (!zipUrl) {
-         // Fallback to source code zip if no explicit asset was uploaded
-         zipUrl = releaseData.zipball_url;
+        // Fallback to source code zip if no explicit asset was uploaded
+        zipUrl = releaseData.zipball_url;
       }
 
       resultsDiv.innerHTML = `
