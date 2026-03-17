@@ -15,7 +15,7 @@ The **AMP BIS, Preorder & Bundles Checker** is a proprietary troubleshooting too
 ## 📦 Installation
 
 ### First Time Setup
-1. Clone this repository or download the ZIP and extract it.
+1. Download the ZIP and extract it.
 2. Open Google Chrome → navigate to `chrome://extensions/`.
 3. Toggle **Developer mode** ON (top right corner).
 4. Click **Load unpacked** (top left).
