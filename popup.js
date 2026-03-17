@@ -2949,3 +2949,10 @@ document.getElementById('checkUpdatesBtn').addEventListener('click', () => perfo
 
 // Auto-check on popup load
 performUpdateCheck(true);
+
+// ----------------------------------------------------
+// Check Documentation
+// ----------------------------------------------------
+document.getElementById('checkDocsBtn').addEventListener('click', () => {
+  window.open('https://useamp.slite.com/app/docs/-AOr8bRCQyE1Yb/BIS-Checker-and-Preorder-Checker-Chrome-Extension-Tool', '_blank');
+});
