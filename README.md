@@ -49,9 +49,9 @@ The extension is split into three main sections: **AMP BIS Checker**, **AMP Preo
 | **.BIS_trigger (Class)** | Checks if a `.BIS_trigger` element exists in the DOM |
 
 **Status indicators:**
-- 🟢 **Found** — Element is present and visible
+- 🟢 **Found** — Element is present and visible.
 - 🟡 **Hidden (CSS)** — Element exists but is invisible (e.g., `display: none`, `visibility: hidden`, or `opacity: 0`). This is a common cause of "button doesn't show" tickets.
-- 🔴 **Not Found** — Element does not exist on the page
+- 🔴 **Not Found** — Element does not exist on the page.
 
 **Go to Element** button: Forces hidden elements visible, scrolls to them, and highlights them with a flashing green border.
 
