@@ -1,4 +1,4 @@
-# 🔍 AMP BIS & Preorder Checker
+# 🔍 AMP BIS, Preorder & Bundles Checker
 
 > An advanced diagnostic Chrome Extension built exclusively for AMP Tier 2 Support Specialists.
 
@@ -8,7 +8,7 @@
 
 ## Overview
 
-The **AMP BIS (Back in Stock) & Preorder Checker** is a proprietary troubleshooting tool designed for the AMP support team. It eliminates hours of manual detective work by instantly inspecting Shopify storefronts, surfacing hidden rendering issues, and diagnosing exactly why BIS or Preorder buttons do or don't appear — all without requiring backend access.
+The **AMP BIS, Preorder & Bundles Checker** is a proprietary troubleshooting tool designed for the AMP support team. It eliminates hours of manual detective work by instantly inspecting Shopify storefronts, surfacing hidden rendering issues, and diagnosing exactly why BIS, Preorder, or Bundle UI elements do or don't appear — all without requiring backend access.
 
 ---
 
@@ -34,7 +34,7 @@ The **AMP BIS (Back in Stock) & Preorder Checker** is a proprietary troubleshoot
 
 ## 🛠️ Features
 
-The extension is split into two main sections: **AMP BIS Checker** and **AMP Preorder Checker**.
+The extension is split into three main sections: **AMP BIS Checker**, **AMP Preorder Checker**, and **AMP Bundles Checker**.
 
 ---
 
@@ -178,6 +178,46 @@ For preorder to show, the variant must be:
 
 ---
 
+### 8. 📦 Check Bundles Script
+
+> **What it does:** Checks if the AMP Bundles app embed is enabled on the current page.
+
+Scans for the AMP Bundles CDN URL (`cdn.shopify.com/extensions/019cfa3c-4cdd-7228-8790-08631be53567`) across:
+- `<script>` tags in the DOM
+- `<link>` tags (stylesheets, preloads)
+- **Performance API** resource entries (catches dynamically loaded assets not visible as DOM elements)
+
+**Status indicators:**
+- 🟢 **Enabled** — The Bundles app embed is active on the page
+- 🔴 **Not Enabled** — The CDN script was not found. The app embed may be disabled in the theme editor.
+
+The App Embed status row is always visible with a default `Unknown` state, updating to `Enabled` or `Not Enabled` when you click **Check Bundles Script**.
+
+---
+
+### 9. 🎯 Open Bundles Positioner
+
+> **What it does:** A visual DOM selector tool for generating JavaScript snippets that reposition AMP Bundle blocks on the storefront.
+
+**Must be on a Shopify product page** (`/products/...`).
+
+#### How It Works
+1. **Select Bundle** — Hover and click the bundle element you want to move. The highlight is **green** (🟢).
+2. **Select Anchor** — Hover and click the target element where you want the bundle placed. The highlight is **blue** (🔵).
+3. **Placement Options** — Configure:
+   - **Relative Position** — Before/After anchor, or Inside anchor (Top/Bottom)
+   - **CSS Styles** — Add custom inline CSS to the repositioned bundle (e.g. `margin-top: 20px;`)
+   - **Load Delay (ms)** — Wraps the script in a `setTimeout` for lazy-loaded themes (default: `500ms`)
+4. **Generate JS** — Outputs a ready-to-paste `<script>` block for `theme.liquid` (above the closing `</body>` tag)
+
+#### Additional Features
+- **▶ Run Script** — Execute the generated script live on the page to preview the result before copying
+- **Copy to Clipboard** — Copy the final script for pasting into the theme
+- **Open / Close toggle** — The button toggles between `Open Bundles Positioner` and `Close Bundles Positioner`, cleaning up all injected elements on close
+- **Event capture** — Clicks are intercepted with `{ capture: true }` so interactive page elements (Add to Cart, links, etc.) are not accidentally triggered during selection
+
+---
+
 ## 🔐 Security & Privacy
 
 - Operates **entirely client-side** — no data is sent to external servers
@@ -205,8 +245,8 @@ When you finish making code updates to `main`, you can trigger the automated Git
 3. **Tag for Release**
    Create a git tag with a `v` prefix matching your `manifest.json` version, and push it. This automatically triggers `.github/workflows/release.yml` to package and upload the `bischecker.zip` to the new GitHub Release page!
    ```bash
-   git tag v1.5.0
-   git push origin v1.5.0
+   git tag v2.0.0
+   git push origin v2.0.0
    ```
 
 ---
@@ -221,20 +261,30 @@ When you finish making code updates to `main`, you can trigger the automated Git
 | APIs Used | `chrome.tabs`, `chrome.scripting` |
 
 ---
-
 ## 🐛 Troubleshooting
 
 | Issue | Solution |
 |---|---|
 | Extension doesn't load | Make sure **Developer mode** is ON in `chrome://extensions/` |
 | "Cannot run on this page" | Navigate to an `http://` or `https://` page first |
-| "Please navigate to a Shopify product page" | You must be on a `/products/...` URL for product checks |
+| "Please navigate to a Shopify product page" | You must be on a `/products/...` URL for product checks and the Bundles Positioner |
 | BIS Settings section is empty | The store may not have the BIS widget installed, or it hasn't loaded yet |
 | Data shows "Unknown" or "Hidden by Theme" | The theme is stripping inventory fields from the JSON — the extension will fall back to BIS.Config or LiquidPreOrdersConfig if available |
+| Bundles App Embed shows "Not Enabled" | The merchant may have disabled the AMP Bundles app embed in the theme editor. Check **Online Store → Themes → Customize → App embeds** |
+| Bundles Positioner doesn't highlight anything | Make sure the page has fully loaded, including any lazy-loaded bundle widgets. Try increasing the Load Delay |
 
 ---
 
 ## 📝 Changelog
+
+### v2.0.0 — March 2026
+- 🆕 Added **AMP Bundles Checker** section
+- 📦 Added **Check Bundles Script** — detects if the Bundles app embed is enabled via CDN URL scan
+- 🎯 Added **Open Bundles Positioner** — visual DOM selector for repositioning bundle blocks with JS snippet generation
+  - Green/Blue highlight distinction for bundle vs anchor selection
+  - CSS style injection, configurable load delay (default 500ms), and live Run Script preview
+  - Event capture prevents accidental clicks on page elements during selection
+- 📝 Updated manifest description and version to v2.0.0
 
 ### v1.5 — March 2026
 - 📜 Updated `README.md` with Auto-Update and Developer Release instructions

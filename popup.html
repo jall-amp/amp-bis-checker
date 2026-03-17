@@ -115,6 +115,36 @@
 
   <br />
   <hr style="border: 0; border-top: 1px solid #ebebeb; margin: 15px 0;">
+  <h2>AMP BUNDLES CHECKER</h2>
+  <div id="errorMsgBundles" class="error-msg hidden"></div>
+
+  <!-- Section 6: Bundles Script Check -->
+  <div class="section">
+    <div class="tooltip-wrapper"
+      data-tooltip="Checks if the AMP Bundles app embed is enabled on the current page by scanning for its CDN script.">
+      <button id="checkBundlesBtn" class="primary-btn last-btn">Check Bundles Script</button>
+    </div>
+
+    <div id="bundlesResults" style="border-top: 1px solid #ebebeb; margin-top: 12px; padding-top: 12px;">
+      <div class="result-block">
+        <div class="status-item">
+          <span>App Embed:</span>
+          <button id="bundlesEmbedStatus" class="status-btn unknown" disabled>Unknown</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 7: Bundles Positioner -->
+  <div class="section">
+    <div class="tooltip-wrapper"
+      data-tooltip="Injects the Bundle Positioner tool into the page. Select a bundle block and an anchor element to generate a JS snippet that moves the bundle to a new position.">
+      <button id="openBundlesPositionerBtn" class="primary-btn last-btn">Open Bundles Positioner</button>
+    </div>
+  </div>
+
+  <br />
+  <hr style="border: 0; border-top: 1px solid #ebebeb; margin: 15px 0;">
   <h2>UPDATES</h2>
 
   <!-- Section 6: Updates -->

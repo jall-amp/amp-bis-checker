@@ -2533,6 +2533,418 @@ async function performUpdateCheck(isAutoCheck = false) {
   }
 }
 
+// ----------------------------------------------------
+// New: Check Bundles Script Functionality
+// ----------------------------------------------------
+
+document.getElementById('checkBundlesBtn').addEventListener('click', async () => {
+  let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+
+  if (!tab.url.startsWith('http')) {
+    showBundlesError('Cannot run on this page.');
+    return;
+  }
+
+  const btn = document.getElementById('checkBundlesBtn');
+  btn.textContent = 'Checking...';
+  btn.disabled = true;
+
+  const statusBtn = document.getElementById('bundlesEmbedStatus');
+  statusBtn.textContent = 'Checking...';
+  statusBtn.className = 'status-btn unknown';
+  statusBtn.disabled = true;
+
+  chrome.scripting.executeScript({
+    target: { tabId: tab.id },
+    function: checkBundlesEmbed,
+  }, (results) => {
+    btn.textContent = 'Check Bundles Script';
+    btn.disabled = false;
+
+    if (results && results[0] && results[0].result) {
+      statusBtn.textContent = 'Enabled';
+      statusBtn.className = 'status-btn success';
+    } else {
+      statusBtn.textContent = 'Not Enabled';
+      statusBtn.className = 'status-btn error';
+    }
+    statusBtn.disabled = true;
+  });
+});
+
+function checkBundlesEmbed() {
+  const bundlesCdnUrl = 'cdn.shopify.com/extensions/019cfa3c-4cdd-7228-8790-08631be53567';
+
+  // Check <script> tags
+  const allScripts = document.querySelectorAll('script[src]');
+  for (let script of allScripts) {
+    if (script.src && script.src.includes(bundlesCdnUrl)) return true;
+  }
+
+  // Check <link> tags (stylesheets, preloads)
+  const allLinks = document.querySelectorAll('link[href]');
+  for (let link of allLinks) {
+    if (link.href && link.href.includes(bundlesCdnUrl)) return true;
+  }
+
+  // Check performance resource entries (catches dynamically loaded resources)
+  if (window.performance && window.performance.getEntriesByType) {
+    const resourceEntries = window.performance.getEntriesByType('resource');
+    for (let entry of resourceEntries) {
+      if (entry.name.includes(bundlesCdnUrl)) return true;
+    }
+  }
+
+  return false;
+}
+
+function showBundlesError(message) {
+  const errorMsg = document.getElementById('errorMsgBundles');
+  errorMsg.textContent = message;
+  errorMsg.classList.remove('hidden');
+  setTimeout(() => {
+    errorMsg.classList.add('hidden');
+  }, 5000);
+}
+
+// ----------------------------------------------------
+// New: Bundles Positioner Functionality
+// ----------------------------------------------------
+
+// Check Bundles Positioner status on Popup load
+chrome.tabs.query({ active: true, currentWindow: true }).then(([tab]) => {
+  if (tab && tab.url && tab.url.startsWith('http')) {
+    chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      world: 'MAIN',
+      function: () => !!window.__ampBundlePositionerRan,
+    }, (results) => {
+      if (results && results[0] && results[0].result) {
+        document.getElementById('openBundlesPositionerBtn').textContent = 'Close Bundles Positioner';
+      }
+    });
+  }
+});
+
+document.getElementById('openBundlesPositionerBtn').addEventListener('click', async () => {
+  let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+
+  if (!tab.url.startsWith('http')) {
+    showBundlesError('Cannot run on this page.');
+    return;
+  }
+
+  // Check if it's likely a product page
+  if (!tab.url.includes('/products/')) {
+    showBundlesError('Please navigate to a Shopify product page to use the Bundles Positioner.');
+    return;
+  }
+
+  const btn = document.getElementById('openBundlesPositionerBtn');
+  const isClosing = btn.textContent === 'Close Bundles Positioner';
+
+  if (isClosing) {
+    // Remove Bundles Positioner from tab context
+    chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      world: 'MAIN',
+      function: () => {
+        // Remove all injected elements by the positioner
+        var els = document.querySelectorAll('[data-abp-injected]');
+        els.forEach(function (el) { el.remove(); });
+        delete window.__ampBundlePositionerRan;
+      },
+    });
+    btn.textContent = 'Open Bundles Positioner';
+  } else {
+    // Execute the Bundles Positioner in the active tab context
+    chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      world: 'MAIN',
+      function: openBundlesPositioner,
+    });
+    btn.textContent = 'Close Bundles Positioner';
+  }
+});
+
+function openBundlesPositioner() {
+  if (window.__ampBundlePositionerRan) {
+    return;
+  }
+  window.__ampBundlePositionerRan = true;
+
+  var state = 'IDLE';
+  var bundleSelector = null;
+  var anchorSelector = null;
+  var hoveredElement = null;
+  var resolvedElement = null;
+
+  var overlay = document.createElement('div');
+  overlay.setAttribute('data-abp-injected', 'true');
+  overlay.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; z-index:9999998; display:none;';
+  document.body.appendChild(overlay);
+
+  var panel = document.createElement('div');
+  panel.setAttribute('data-abp-injected', 'true');
+  panel.style.cssText = 'position:fixed; top:20px; left:20px; width:340px; background:#fff; border:1px solid #ccc; border-radius:8px; padding:15px; box-shadow:0 10px 25px rgba(0,0,0,0.2); z-index:9999999; font-family:system-ui, sans-serif; font-size:14px; color:#333; display:flex; flex-direction:column; gap:10px;';
+  document.body.appendChild(panel);
+
+  var outline = document.createElement('div');
+  outline.setAttribute('data-abp-injected', 'true');
+  outline.style.cssText = 'position:absolute; pointer-events:none; z-index:9999999; border:3px solid #0056b3; background:rgba(0, 86, 179, 0.2); display:none; transition:all 0.05s ease; border-radius:4px;';
+  document.body.appendChild(outline);
+
+  var elLabel = document.createElement('div');
+  elLabel.setAttribute('data-abp-injected', 'true');
+  elLabel.style.cssText = 'position:absolute; pointer-events:none; z-index:10000000; background:#0056b3; color:#fff; font-family:monospace; font-size:11px; padding:2px 6px; border-radius:3px; white-space:nowrap; display:none;';
+  document.body.appendChild(elLabel);
+
+  function getCssSelector(el) {
+    if (el.id) return '#' + el.id;
+    if (el.className && typeof el.className === 'string') {
+      var classes = el.className.split(' ').filter(function (c) { return c.trim() !== '' && c.indexOf(':') === -1; });
+      if (classes.length > 0) return '.' + classes.join('.');
+    }
+    return el.tagName.toLowerCase();
+  }
+
+  function highlightElement(el, text) {
+    var rect = el.getBoundingClientRect();
+    outline.style.left = (rect.left + window.scrollX) + 'px';
+    outline.style.top = (rect.top + window.scrollY) + 'px';
+    outline.style.width = rect.width + 'px';
+    outline.style.height = rect.height + 'px';
+    outline.style.display = 'block';
+    elLabel.textContent = text;
+    elLabel.style.left = (rect.left + window.scrollX) + 'px';
+    elLabel.style.top = (rect.top + window.scrollY - 20) + 'px';
+    elLabel.style.display = 'block';
+  }
+
+  function buildCode(pos, cssRules, delayMs) {
+    var lines = [];
+    lines.push('/* Generated by AMP Bundles Positioner */');
+    lines.push('document.addEventListener("DOMContentLoaded", function() {');
+    if (delayMs > 0) {
+      lines.push('  setTimeout(function() {');
+      lines.push('    var bundleBlock = document.querySelector(\'' + bundleSelector + '\');');
+      lines.push('    var anchorElement = document.querySelector(\'' + anchorSelector + '\');');
+      lines.push('    if (bundleBlock && anchorElement) {');
+      lines.push('      anchorElement.insertAdjacentElement(\'' + pos + '\', bundleBlock);');
+      if (cssRules) { lines.push('      bundleBlock.style.cssText += \'' + cssRules.replace(/'/g, "\\'") + '\';'); }
+      lines.push('    }');
+      lines.push('  }, ' + delayMs + ');');
+    } else {
+      lines.push('  var bundleBlock = document.querySelector(\'' + bundleSelector + '\');');
+      lines.push('  var anchorElement = document.querySelector(\'' + anchorSelector + '\');');
+      lines.push('  if (bundleBlock && anchorElement) {');
+      lines.push('    anchorElement.insertAdjacentElement(\'' + pos + '\', bundleBlock);');
+      if (cssRules) { lines.push('    bundleBlock.style.cssText += \'' + cssRules.replace(/'/g, "\\'") + '\';'); }
+      lines.push('  }');
+    }
+    lines.push('});');
+    return lines.join('\n');
+  }
+
+  function buildRunCode(pos, cssRules, delayMs) {
+    var lines = [];
+    if (delayMs > 0) {
+      lines.push('setTimeout(function() {');
+      lines.push('  var bundleBlock = document.querySelector(\'' + bundleSelector + '\');');
+      lines.push('  var anchorElement = document.querySelector(\'' + anchorSelector + '\');');
+      lines.push('  if (bundleBlock && anchorElement) {');
+      lines.push('    anchorElement.insertAdjacentElement(\'' + pos + '\', bundleBlock);');
+      if (cssRules) { lines.push('    bundleBlock.style.cssText += \'' + cssRules.replace(/'/g, "\\'") + '\';'); }
+      lines.push('  }');
+      lines.push('}, ' + delayMs + ');');
+    } else {
+      lines.push('(function() {');
+      lines.push('  var bundleBlock = document.querySelector(\'' + bundleSelector + '\');');
+      lines.push('  var anchorElement = document.querySelector(\'' + anchorSelector + '\');');
+      lines.push('  if (bundleBlock && anchorElement) {');
+      lines.push('    anchorElement.insertAdjacentElement(\'' + pos + '\', bundleBlock);');
+      if (cssRules) { lines.push('    bundleBlock.style.cssText += \'' + cssRules.replace(/'/g, "\\'") + '\';'); }
+      lines.push('  }');
+      lines.push('})();');
+    }
+    return lines.join('\n');
+  }
+
+  function updateUI() {
+    if (state === 'IDLE') {
+      panel.innerHTML = '<h3 style="margin:0;font-size:16px;">AMP Bundles Positioner</h3>' +
+        '<p style="margin:0;font-size:13px;color:#666;">Select elements to generate a custom JS placement script.</p>' +
+        '<button id="abp-btn-start" style="background:#008060;color:#fff;border:none;padding:10px;border-radius:6px;cursor:pointer;font-weight:bold;">1. Select Bundle to Move</button>' +
+        '<button id="abp-btn-close-init" style="background:none;border:none;color:#666;cursor:pointer;text-decoration:underline;font-size:12px;margin-top:5px;">Close</button>';
+      document.getElementById('abp-btn-start').onclick = function () { state = 'SELECT_BUNDLE'; overlay.style.display = 'block'; updateUI(); };
+      document.getElementById('abp-btn-close-init').onclick = destroy;
+    }
+    else if (state === 'SELECT_BUNDLE') {
+      panel.innerHTML = '<h3 style="margin:0;font-size:16px;">Step 1: Select Bundle</h3>' +
+        '<p style="margin:0;font-size:13px;color:#008060;font-weight:bold;">Hover & Click the bundle element to move.</p>' +
+        '<p style="margin:0;font-size:12px;color:#6d7175;">The green highlight shows what will be selected.</p>' +
+        '<button id="abp-btn-cancel" style="background:#ffffff;color:#202223;border:1px solid #c9cccf;padding:6px;border-radius:4px;cursor:pointer;font-weight:600;">Cancel</button>';
+      document.getElementById('abp-btn-cancel').onclick = reset;
+    }
+    else if (state === 'SELECT_ANCHOR') {
+      panel.innerHTML = '<h3 style="margin:0;font-size:16px;">Step 2: Target Anchor</h3>' +
+        '<p style="margin:0;font-size:12px;background:#e3f1df;padding:6px;border-radius:4px;word-break:break-all;border:1px solid #008060;"><b>Bundle:</b> <code>' + bundleSelector + '</code></p>' +
+        '<p style="margin:0;font-size:13px;color:#008060;font-weight:bold;">Hover & Click where you want to drop it.</p>' +
+        '<button id="abp-btn-cancel" style="background:#ffffff;color:#202223;border:1px solid #c9cccf;padding:6px;border-radius:4px;cursor:pointer;font-weight:600;">Cancel</button>';
+      document.getElementById('abp-btn-cancel').onclick = reset;
+    }
+    else if (state === 'OPTIONS') {
+      overlay.style.display = 'none';
+      panel.innerHTML = '<h3 style="margin:0;font-size:16px;">Step 3: Placement Options</h3>' +
+        '<div style="background:#f4f6f8;padding:10px;border-radius:6px;display:flex;flex-direction:column;gap:8px;border:1px solid #e1e3e5;">' +
+        '<div>' +
+        '<label style="font-weight:600;font-size:12px;display:block;margin-bottom:3px;color:#202223;">Relative Position:</label>' +
+        '<select id="abp-pos" style="width:100%;padding:5px;border:1px solid #c9cccf;border-radius:4px;font-size:13px;">' +
+        '<option value="beforeBegin">Before Anchor Element</option>' +
+        '<option value="afterEnd" selected>After Anchor Element</option>' +
+        '<option value="afterBegin">Inside Anchor (Top)</option>' +
+        '<option value="beforeEnd">Inside Anchor (Bottom)</option>' +
+        '</select>' +
+        '</div>' +
+        '<div>' +
+        '<label style="font-weight:600;font-size:12px;display:block;margin-bottom:3px;color:#202223;">Add CSS to Bundle:</label>' +
+        '<input type="text" id="abp-css" placeholder="e.g. margin-top: 20px; padding: 10px;" style="width:calc(100% - 12px);padding:5px;border:1px solid #c9cccf;border-radius:4px;font-family:monospace;font-size:12px;">' +
+        '</div>' +
+        '<div>' +
+        '<label style="font-weight:600;font-size:12px;display:block;margin-bottom:3px;color:#202223;">Load Delay (ms):</label>' +
+        '<input type="number" id="abp-delay" value="500" min="0" step="100" style="width:80px;padding:5px;border:1px solid #c9cccf;border-radius:4px;">' +
+        '<span style="font-size:11px;color:#6d7175;"> (Default 500ms)</span>' +
+        '</div>' +
+        '</div>' +
+        '<div style="display:flex;gap:8px;margin-top:5px;">' +
+        '<button id="abp-btn-next" style="background:#008060;color:#fff;border:none;padding:10px;border-radius:6px;cursor:pointer;font-weight:bold;flex:1;">Generate JS</button>' +
+        '<button id="abp-btn-cancel" style="background:#ffffff;color:#202223;border:1px solid #c9cccf;padding:10px;border-radius:6px;cursor:pointer;font-weight:600;">Restart</button>' +
+        '</div>';
+      document.getElementById('abp-btn-cancel').onclick = reset;
+      document.getElementById('abp-btn-next').onclick = function () { state = 'GENERATE'; updateUI(); };
+    }
+    else if (state === 'GENERATE') {
+      var pos = document.getElementById('abp-pos').value;
+      var cssRules = document.getElementById('abp-css').value.trim();
+      var delayMs = parseInt(document.getElementById('abp-delay').value) || 0;
+
+      var finalCode = buildCode(pos, cssRules, delayMs);
+      var runCode = buildRunCode(pos, cssRules, delayMs);
+
+      panel.innerHTML = '<h3 style="margin:0;font-size:16px;color:#008060;">&#10004; Script Generated</h3>' +
+        '<p style="margin:0;font-size:12px;color:#6d7175;">Copy this snippet into theme.liquid above the closing </body> tag.</p>' +
+        '<textarea id="abp-output" style="width:calc(100% - 18px);font-family:SFMono-Regular,Consolas,Liberation Mono,Menlo,Courier,monospace;font-size:11px;padding:8px;border-radius:4px;border:1px solid #c9cccf;resize:vertical;background:#fff;color:#202223;" rows="7" readonly></textarea>' +
+        '<div style="display:flex;gap:8px;margin-top:5px;">' +
+        '<button id="abp-btn-run" style="background:#f4f6f8;color:#202223;border:1px solid #c9cccf;padding:10px;border-radius:4px;cursor:pointer;font-weight:600;flex:1;">&#9654; Run Script</button>' +
+        '<button id="abp-btn-copy" style="background:#008060;color:#fff;border:none;padding:10px;border-radius:4px;cursor:pointer;font-weight:600;flex:1;">Copy to Clipboard</button>' +
+        '</div>' +
+        '<div style="display:flex;gap:8px;">' +
+        '<button id="abp-btn-restart" style="background:#ffffff;color:#202223;border:1px solid #c9cccf;padding:8px;border-radius:4px;cursor:pointer;font-weight:600;flex:1;">Restart</button>' +
+        '<button id="abp-btn-close" style="background:#ffffff;color:#202223;border:1px solid #c9cccf;padding:8px;border-radius:4px;cursor:pointer;font-weight:600;flex:1;">Close</button>' +
+        '</div>';
+
+      document.getElementById('abp-output').value = finalCode;
+
+      document.getElementById('abp-btn-run').onclick = function () {
+        try {
+          eval(runCode);
+          var btn = document.getElementById('abp-btn-run');
+          btn.innerHTML = '&#10004; Executed!';
+          btn.style.background = '#e3f1df';
+          btn.style.borderColor = '#008060';
+          btn.style.color = '#008060';
+          setTimeout(function () { btn.innerHTML = '&#9654; Run Script'; btn.style.background = '#f4f6f8'; btn.style.borderColor = '#c9cccf'; btn.style.color = '#202223'; }, 2000);
+        } catch (err) {
+          alert('Script error: ' + err.message);
+        }
+      };
+
+      document.getElementById('abp-btn-copy').onclick = function () {
+        var ta = document.getElementById('abp-output');
+        ta.select();
+        document.execCommand('copy');
+        var btn = document.getElementById('abp-btn-copy');
+        btn.textContent = 'Copied!';
+        btn.style.background = '#006e52';
+        setTimeout(function () { btn.textContent = 'Copy to Clipboard'; btn.style.background = '#008060'; }, 2000);
+      };
+
+      document.getElementById('abp-btn-restart').onclick = reset;
+      document.getElementById('abp-btn-close').onclick = destroy;
+    }
+  }
+
+  function reset() {
+    state = 'IDLE'; bundleSelector = null; anchorSelector = null;
+    overlay.style.display = 'none'; outline.style.display = 'none'; elLabel.style.display = 'none';
+    updateUI();
+  }
+
+  function destroy() {
+    panel.remove(); outline.remove(); overlay.remove(); elLabel.remove();
+    document.removeEventListener('mousemove', onMouseMove, true);
+    document.removeEventListener('click', onClick, true);
+    delete window.__ampBundlePositionerRan;
+  }
+
+  function onMouseMove(e) {
+    if (state !== 'SELECT_BUNDLE' && state !== 'SELECT_ANCHOR') return;
+    if (panel.contains(e.target)) { outline.style.display = 'none'; elLabel.style.display = 'none'; return; }
+
+    hoveredElement = e.target;
+    if (hoveredElement === overlay) {
+      overlay.style.pointerEvents = 'none';
+      hoveredElement = document.elementFromPoint(e.clientX, e.clientY);
+      overlay.style.pointerEvents = 'auto';
+    }
+    if (!hoveredElement) return;
+
+    resolvedElement = hoveredElement;
+    highlightElement(hoveredElement, getCssSelector(hoveredElement));
+
+    if (state === 'SELECT_BUNDLE') {
+      // Green highlight for bundle selection
+      outline.style.borderColor = '#008060';
+      outline.style.background = 'rgba(0, 128, 96, 0.15)';
+      elLabel.style.background = '#008060';
+    } else {
+      // Blue highlight for anchor selection
+      outline.style.borderColor = '#0056b3';
+      outline.style.background = 'rgba(0, 86, 179, 0.2)';
+      elLabel.style.background = '#0056b3';
+    }
+  }
+
+  function onClick(e) {
+    if (state !== 'SELECT_BUNDLE' && state !== 'SELECT_ANCHOR') return;
+    if (panel.contains(e.target)) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+
+    if (!resolvedElement) return;
+    var selector = getCssSelector(resolvedElement);
+
+    if (state === 'SELECT_BUNDLE') {
+      bundleSelector = selector;
+      state = 'SELECT_ANCHOR';
+      outline.style.display = 'none'; elLabel.style.display = 'none';
+      updateUI();
+    } else if (state === 'SELECT_ANCHOR') {
+      anchorSelector = selector;
+      outline.style.display = 'none'; elLabel.style.display = 'none';
+      state = 'OPTIONS';
+      updateUI();
+    }
+  }
+
+  document.addEventListener('mousemove', onMouseMove, true);
+  document.addEventListener('click', onClick, true);
+
+  updateUI();
+}
+
 document.getElementById('checkUpdatesBtn').addEventListener('click', () => performUpdateCheck(false));
 
 // Auto-check on popup load
