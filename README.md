@@ -182,7 +182,7 @@ For preorder to show, the variant must be:
 
 > **What it does:** Checks if the AMP Bundles app embed is enabled on the current page.
 
-Scans for the AMP Bundles CDN URL (`cdn.shopify.com/extensions/019cfa3c-4cdd-7228-8790-08631be53567`) across:
+Scans for the AMP Bundles CDN URL (`cdn.shopify.com/extensions/019cfec9-2674-7e6d-8c25-b494aea3a4b0`) across:
 - `<script>` tags in the DOM
 - `<link>` tags (stylesheets, preloads)
 - **Performance API** resource entries (catches dynamically loaded assets not visible as DOM elements)

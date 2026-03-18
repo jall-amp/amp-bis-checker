@@ -2573,7 +2573,7 @@ document.getElementById('checkBundlesBtn').addEventListener('click', async () =>
 });
 
 function checkBundlesEmbed() {
-  const bundlesCdnUrl = 'cdn.shopify.com/extensions/019cfa3c-4cdd-7228-8790-08631be53567';
+  const bundlesCdnUrl = 'cdn.shopify.com/extensions/019cfec9-2674-7e6d-8c25-b494aea3a4b0';
 
   // Check <script> tags
   const allScripts = document.querySelectorAll('script[src]');
