@@ -1752,6 +1752,11 @@ document.getElementById('checkBisProductBtn').addEventListener('click', async ()
           liquidConfig = window.LiquidPreOrdersConfig;
         }
 
+        let metaVariants = [];
+        if (window.meta && window.meta.product && window.meta.product.variants) {
+          metaVariants = window.meta.product.variants;
+        }
+
         const tags = data.tags || [];
         const hideTagsRaw = bisConfig && bisConfig.hide_for_product_tags ? bisConfig.hide_for_product_tags : 'bis-hidden';
         const hideTags = hideTagsRaw.split(',').map(t => t.trim().toLowerCase());
@@ -1767,6 +1772,12 @@ document.getElementById('checkBisProductBtn').addEventListener('click', async ()
         const variants = data.variants.map(v => {
           const bisVariant = bisVariants.find(bv => bv.id === v.id);
           const liquidVariant = liquidVariants[String(v.id)] || null;
+
+          const metaVariant = metaVariants.find(mv => mv.id === v.id);
+          let metaAvailable = null;
+          if (metaVariant && typeof metaVariant.available !== 'undefined') {
+            metaAvailable = metaVariant.available;
+          }
 
           // Quantity: JSON -> BIS.Config -> LiquidConfig (oos flag)
           let qty = v.inventory_quantity;
@@ -1794,7 +1805,9 @@ document.getElementById('checkBisProductBtn').addEventListener('click', async ()
             policy: policy,
             management: management,
             available: v.available,
-            liquidOOS: liquidOOS
+            liquidOOS: liquidOOS,
+            metaAvailable: metaAvailable,
+            hasBisVariant: !!bisVariant
           };
         });
 
@@ -1875,11 +1888,15 @@ document.getElementById('checkBisProductBtn').addEventListener('click', async ()
 
         // Determine stock status using all data sources
         let isOOS = false;
-        if (v.liquidOOS !== null) {
-          // LiquidPreOrdersConfig is the most accurate source
+        if (v.hasBisVariant) {
+          // Absolute priority: If the variant is in BIS array, it is completely OOS
+          isOOS = true;
+        } else if (v.liquidOOS !== null) {
           isOOS = v.liquidOOS === true;
         } else if (v.qty !== undefined && v.qty !== null) {
           isOOS = v.qty <= 0;
+        } else if (v.metaAvailable !== null) {
+          isOOS = v.metaAvailable === false;
         } else {
           isOOS = v.available === false;
         }
@@ -1892,7 +1909,8 @@ document.getElementById('checkBisProductBtn').addEventListener('click', async ()
           continueSelling = false;
         } else {
           // No policy data available - if variant is available AND OOS, it must be continue selling
-          if (v.available === true && isOOS) continueSelling = true;
+          // Exception: If the JSON 'available' is true but it's in bisVariant, the JSON is lying.
+          if (v.available === true && isOOS && !v.hasBisVariant) continueSelling = true;
         }
 
         // Determine inventory tracking
@@ -2110,13 +2128,37 @@ document.getElementById('checkPreorderBtn').addEventListener('click', async () =
         const noJsWidget = !preorderSettings;
         const isPreordersDisabledGlobally = preorderSettings && preorderSettings.purchases_enabled === false;
 
-        const variants = data.variants.map(v => ({
-          id: v.id,
-          title: v.title || v.name || v.public_title || 'Single Product',
-          qty: v.inventory_quantity,
-          policy: v.inventory_policy,
-          management: v.inventory_management
-        }));
+        let bisVariants = [];
+        if (window.BIS && window.BIS.Config && window.BIS.Config.product && window.BIS.Config.product.variants) {
+          bisVariants = window.BIS.Config.product.variants;
+        } else if (window._BISConfig && window._BISConfig.product && window._BISConfig.product.variants) {
+          bisVariants = window._BISConfig.product.variants;
+        }
+
+        let metaVariants = [];
+        if (window.meta && window.meta.product && window.meta.product.variants) {
+          metaVariants = window.meta.product.variants;
+        }
+
+        const variants = data.variants.map(v => {
+          const bisVariant = bisVariants.find(bv => bv.id === v.id);
+          const metaVariant = metaVariants.find(mv => mv.id === v.id);
+          let metaAvailable = null;
+          if (metaVariant && typeof metaVariant.available !== 'undefined') {
+            metaAvailable = metaVariant.available;
+          }
+
+          return {
+            id: v.id,
+            title: v.title || v.name || v.public_title || 'Single Product',
+            qty: v.inventory_quantity,
+            policy: v.inventory_policy,
+            management: v.inventory_management,
+            metaAvailable: metaAvailable,
+            hasBisVariant: !!bisVariant,
+            jsonAvailable: v.available
+          };
+        });
 
         return { variants, preorderSettings, liquidPreorderSettings, noLiquidHelper, noJsWidget, isPreordersDisabledGlobally };
       } catch (err) {
@@ -2197,18 +2239,25 @@ document.getElementById('checkPreorderBtn').addEventListener('click', async () =
           if (isContinue) continueText = 'True';
           if (!liquidVariant && v.policy === undefined) continueText = 'Unknown (Hidden by Theme)';
 
-          // For OOS: use liquidVariant.oos if available (most accurate), else fall back to qty
+          // For OOS: use liquidVariant.oos if available (most accurate), else fall back to qty -> meta -> BIS fallback
           let hasNoStock = false;
           let isStockHidden = false;
 
-          if (liquidVariant && typeof liquidVariant.oos !== 'undefined') {
+          if (v.hasBisVariant) {
+            // Absolute priority: BIS marks this as OOS definitively
+            hasNoStock = true;
+          } else if (liquidVariant && typeof liquidVariant.oos !== 'undefined') {
             hasNoStock = liquidVariant.oos === true;
+          } else if (v.qty !== undefined && v.qty !== null) {
+            hasNoStock = v.qty <= 0;
+          } else if (v.metaAvailable !== null) {
+            hasNoStock = v.metaAvailable === false;
           } else {
-            const stockQty = v.qty !== undefined && v.qty !== null ? v.qty : null;
-            if (stockQty === null) {
-              isStockHidden = true;
+            // Check if JSON available exists before explicitly throwing hands up
+            if (v.jsonAvailable !== undefined && v.jsonAvailable !== null) {
+              hasNoStock = v.jsonAvailable === false;
             } else {
-              hasNoStock = stockQty <= 0;
+              isStockHidden = true;
             }
           }
 
@@ -2239,18 +2288,13 @@ document.getElementById('checkPreorderBtn').addEventListener('click', async () =
           details.style.fontSize = '12px';
           details.style.marginTop = '4px';
 
-          // Stock display: show qty from JSON, but note if using BIS oos flag
-          const stockQtyDisplay = v.qty !== undefined && v.qty !== null ? v.qty : null;
+          // Stock display: rely directly on the exact hasNoStock logic flag
           let stockDisplay;
-          if (stockQtyDisplay !== null) {
-            const stockColor = stockQtyDisplay <= 0 ? '#008060' : '#d82c0d';
-            stockDisplay = `<span style = "color:${stockColor}; font-weight:bold;" > ${stockQtyDisplay}</span> `;
-          } else if (liquidVariant && typeof liquidVariant.oos !== 'undefined') {
-            const oosColor = liquidVariant.oos ? '#008060' : '#d82c0d';
-            stockDisplay = `<span style = "color:${oosColor}; font-weight:bold;" > ${liquidVariant.oos ? 'OOS' : 'In Stock'}</span> `;
+          if (isStockHidden) {
+            stockDisplay = `<span style="color:#b98900; font-weight:bold;"> Unknown(Hidden by Theme)</span> `;
           } else {
-            // Explicitly report it is hidden
-            stockDisplay = `<span style = "color:#b98900; font-weight:bold;" > Unknown(Hidden by Theme)</span> `;
+            const stockColor = hasNoStock ? '#008060' : '#d82c0d';
+            stockDisplay = `<span style="color:${stockColor}; font-weight:bold;"> ${hasNoStock ? 'OOS' : 'In Stock'}</span> `;
           }
 
           const continueColor = (isContinue || continueText === 'True') ? '#008060' : (continueText.includes('Unknown') ? '#b98900' : '#d82c0d');
