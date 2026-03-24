@@ -1807,7 +1807,8 @@ document.getElementById('checkBisProductBtn').addEventListener('click', async ()
             available: v.available,
             liquidOOS: liquidOOS,
             metaAvailable: metaAvailable,
-            hasBisVariant: !!bisVariant
+            hasBisVariant: !!bisVariant,
+            bisVariant: bisVariant
           };
         });
 
@@ -1888,11 +1889,16 @@ document.getElementById('checkBisProductBtn').addEventListener('click', async ()
 
         // Determine stock status using all data sources
         let isOOS = false;
-        if (v.hasBisVariant) {
-          // Absolute priority: If the variant is in BIS array, it is completely OOS
-          isOOS = true;
-        } else if (v.liquidOOS !== null) {
+        if (v.liquidOOS !== null) {
           isOOS = v.liquidOOS === true;
+        } else if (v.hasBisVariant) {
+          if (typeof v.bisVariant.oos !== 'undefined') {
+            isOOS = v.bisVariant.oos === true;
+          } else if (typeof v.bisVariant.available !== 'undefined') {
+            isOOS = v.bisVariant.available === false;
+          } else {
+            isOOS = true;
+          }
         } else if (v.qty !== undefined && v.qty !== null) {
           isOOS = v.qty <= 0;
         } else if (v.metaAvailable !== null) {
@@ -2156,7 +2162,8 @@ document.getElementById('checkPreorderBtn').addEventListener('click', async () =
             management: v.inventory_management,
             metaAvailable: metaAvailable,
             hasBisVariant: !!bisVariant,
-            jsonAvailable: v.available
+            jsonAvailable: v.available,
+            bisVariant: bisVariant
           };
         });
 
@@ -2243,11 +2250,16 @@ document.getElementById('checkPreorderBtn').addEventListener('click', async () =
           let hasNoStock = false;
           let isStockHidden = false;
 
-          if (v.hasBisVariant) {
-            // Absolute priority: BIS marks this as OOS definitively
-            hasNoStock = true;
-          } else if (liquidVariant && typeof liquidVariant.oos !== 'undefined') {
+          if (liquidVariant && typeof liquidVariant.oos !== 'undefined') {
             hasNoStock = liquidVariant.oos === true;
+          } else if (v.hasBisVariant) {
+            if (typeof v.bisVariant.oos !== 'undefined') {
+              hasNoStock = v.bisVariant.oos === true;
+            } else if (typeof v.bisVariant.available !== 'undefined') {
+              hasNoStock = v.bisVariant.available === false;
+            } else {
+              hasNoStock = true;
+            }
           } else if (v.qty !== undefined && v.qty !== null) {
             hasNoStock = v.qty <= 0;
           } else if (v.metaAvailable !== null) {
