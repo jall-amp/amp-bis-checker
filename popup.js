@@ -26,7 +26,7 @@ document.getElementById('checkBtn').addEventListener('click', async () => {
   // Get the active tab
   let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
-  if (!tab.url.startsWith('http')) {
+  if (!tab || !tab.url || !tab.url.startsWith('http')) {
     showError('Cannot run on this page.');
     return;
   }
@@ -274,7 +274,7 @@ chrome.tabs.query({ active: true, currentWindow: true }).then(([tab]) => {
 document.getElementById('openEditorBtn').addEventListener('click', async () => {
   let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
-  if (!tab.url.startsWith('http')) {
+  if (!tab || !tab.url || !tab.url.startsWith('http')) {
     showError('Cannot run on this page.');
     return;
   }
@@ -348,7 +348,7 @@ document.getElementById('injectScriptBtn').addEventListener('click', async () =>
 
   let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
-  if (!tab.url.startsWith('http')) {
+  if (!tab || !tab.url || !tab.url.startsWith('http')) {
     showError('Cannot inject on this page.');
     return;
   }
@@ -405,7 +405,7 @@ document.getElementById('checkCustomJsBtn').addEventListener('click', async () =
   try {
     let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
-    if (!tab.url.startsWith('http')) {
+    if (!tab || !tab.url || !tab.url.startsWith('http')) {
       showError('Cannot run on this page.');
       btn.textContent = 'Check Custom JS';
       btn.disabled = false;
@@ -1720,7 +1720,7 @@ document.getElementById('checkBisProductBtn').addEventListener('click', async ()
 
   let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
-  if (!tab || !tab.url || !tab.url.startsWith('http') || !tab.url.includes('/products/')) {
+  if (!tab || !tab.url || !tab || !tab.url || !tab.url.startsWith('http') || !tab.url.includes('/products/')) {
     showError('Please navigate to a Shopify product page.');
     btn.textContent = 'Check BIS Product';
     btn.disabled = false;
@@ -2093,7 +2093,7 @@ document.getElementById('checkPreorderBtn').addEventListener('click', async () =
 
   let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
-  if (!tab || !tab.url || !tab.url.startsWith('http') || !tab.url.includes('/products/')) {
+  if (!tab || !tab.url || !tab || !tab.url || !tab.url.startsWith('http') || !tab.url.includes('/products/')) {
     showPreorderError('Please navigate to a Shopify product page.');
     btn.textContent = 'Check Preorder Product';
     btn.disabled = false;
@@ -2596,7 +2596,7 @@ async function performUpdateCheck(isAutoCheck = false) {
 document.getElementById('checkBundlesBtn').addEventListener('click', async () => {
   let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
-  if (!tab.url.startsWith('http')) {
+  if (!tab || !tab.url || !tab.url.startsWith('http')) {
     showBundlesError('Cannot run on this page.');
     return;
   }
@@ -2685,7 +2685,7 @@ chrome.tabs.query({ active: true, currentWindow: true }).then(([tab]) => {
 document.getElementById('openBundlesPositionerBtn').addEventListener('click', async () => {
   let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
-  if (!tab.url.startsWith('http')) {
+  if (!tab || !tab.url || !tab.url.startsWith('http')) {
     showBundlesError('Cannot run on this page.');
     return;
   }
@@ -2991,4 +2991,10 @@ performUpdateCheck(true);
 // ----------------------------------------------------
 document.getElementById('checkDocsBtn').addEventListener('click', () => {
   window.open('https://useamp.slite.com/app/docs/-AOr8bRCQyE1Yb/BIS-Checker-and-Preorder-Checker-Chrome-Extension-Tool', '_blank');
+});
+
+
+// Floating Refresh Logic
+document.getElementById('refreshPanelBtn').addEventListener('click', () => {
+  location.reload();
 });

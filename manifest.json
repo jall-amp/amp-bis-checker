@@ -1,13 +1,16 @@
 {
   "manifest_version": 3,
   "name": "AMP BIS CHECKER",
-  "version": "2.0.4",
+  "version": "2.0.5",
   "description": "Diagnostic tool for BIS, Preorder, and Bundles — checks scripts, elements, product data, and provides a visual Bundle Positioner.",
   "permissions": [
     "activeTab",
-    "scripting"
+    "scripting",
+    "sidePanel",
+    "tabs"
   ],
   "host_permissions": [
+    "<all_urls>",
     "https://api.github.com/repos/jall-amp/amp-bis-checker/releases/latest"
   ],
   "icons": {
@@ -15,7 +18,13 @@
     "48": "icon.png",
     "128": "icon.png"
   },
+  "background": {
+    "service_worker": "background.js"
+  },
   "action": {
-    "default_popup": "popup.html"
+    "default_title": "Open BIS Checker"
+  },
+  "side_panel": {
+    "default_path": "popup.html"
   }
 }
