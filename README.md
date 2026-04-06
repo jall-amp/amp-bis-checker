@@ -23,7 +23,7 @@ The **AMP BIS, Preorder & Bundles Checker** is a proprietary troubleshooting too
 6. Click the puzzle-piece icon in your toolbar and **pin** the extension for quick access.
 
 ### Updating the Extension
-1. Open the **AMP BIS CHECKER** extension popup.
+1. Open the **AMP BIS CHECKER** extension sidepanel.
 2. If an update is available, you will automatically be scrolled to the bottom **UPDATES** section with a blue banner.
 3. Click the **Download ZIP** button.
 4. Extract the newly downloaded ZIP file and replace your existing local `bischecker` folder files.
